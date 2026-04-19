@@ -5,3 +5,10 @@ backend/dist/
 frontend/.env
 frontend/.next/**
 frontend/dist/
+node_modules/
+backend/.next/
+frontend/.next/
+backend/dist/
+frontend/dist/
+node_modules/
+
