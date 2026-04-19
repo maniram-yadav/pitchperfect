@@ -5,17 +5,21 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 
 export default function DashboardPage() {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, hasLoaded, user } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (hasLoaded && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [hasLoaded, isAuthenticated, router]);
+
+  if (!hasLoaded) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
 
   if (!isAuthenticated || !user) {
-    return <div>Loading...</div>;
+    return null;
   }
 
   return (

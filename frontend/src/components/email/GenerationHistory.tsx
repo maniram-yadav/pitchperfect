@@ -46,7 +46,7 @@ export default function GenerationHistory({ generations }: GenerationHistoryProp
                     </span>
                   </div>
                   <p className="text-sm text-gray-500 truncate">
-                    <span className="font-medium">Target:</span> {gen.inputParams.targetRole} • <span className="font-medium">Type:</span> {gen.inputParams.emailType.replace('_', ' ')}
+                    <span className="font-medium">Target:</span> {gen.inputParams.targetRole} • <span className="font-medium">Type:</span> {gen.inputParams.emailType?.replace('_', ' ')}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -69,15 +69,15 @@ export default function GenerationHistory({ generations }: GenerationHistoryProp
                   <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                     <div>
                       <span className="text-gray-600 font-medium">Email Type:</span>
-                      <p className="text-gray-900 mt-1">{gen.inputParams.emailType.replace('_', ' ')}</p>
+                      <p className="text-gray-900 mt-1">{gen.inputParams.emailType?.replace('_', ' ')}</p>
                     </div>
                     <div>
                       <span className="text-gray-600 font-medium">Tone:</span>
-                      <p className="text-gray-900 mt-1 capitalize">{gen.inputParams.tone}</p>
+                      <p className="text-gray-900 mt-1 capitalize">{gen.inputParams.tone ?? '—'}</p>
                     </div>
                     <div>
                       <span className="text-gray-600 font-medium">Length:</span>
-                      <p className="text-gray-900 mt-1 capitalize">{gen.inputParams.length}</p>
+                      <p className="text-gray-900 mt-1 capitalize">{gen.inputParams.length ?? '—'}</p>
                     </div>
                     <div>
                       <span className="text-gray-600 font-medium">Tokens Used:</span>
@@ -85,20 +85,22 @@ export default function GenerationHistory({ generations }: GenerationHistoryProp
                     </div>
                   </div>
 
-                  <div className="mb-4">
-                    <span className="text-gray-600 text-sm font-medium block mb-2">Pain Points:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {gen.inputParams.painPoints.map((point, idx) => (
-                        <span key={idx} className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
-                          {point}
-                        </span>
-                      ))}
+                  {gen.inputParams.painPoints && gen.inputParams.painPoints.length > 0 && (
+                    <div className="mb-4">
+                      <span className="text-gray-600 text-sm font-medium block mb-2">Pain Points:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {gen.inputParams.painPoints.map((point, idx) => (
+                          <span key={idx} className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
+                            {point}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <GeneratedEmailsDisplay
-                    emails={gen.generatedOutput.emails}
-                    emailType={gen.inputParams.emailType.replace('_', ' ')}
+                    emails={gen.generatedOutput?.emails ?? []}
+                    emailType={gen.inputParams.emailType?.replace('_', ' ') ?? ''}
                   />
 
                   {gen.generatedOutput.sequence && gen.generatedOutput.sequence.length > 0 && (

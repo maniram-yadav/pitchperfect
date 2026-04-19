@@ -6,6 +6,14 @@ interface UserDocument extends Document {
   passwordHash: string;
   tokens: number;
   plan: 'free' | 'starter' | 'pro';
+  profile?: {
+    role?: string;
+    company?: string;
+    website?: string;
+    productDescription?: string;
+    valueProposition?: string;
+    usp?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -35,6 +43,14 @@ const userSchema = new Schema<UserDocument>(
       type: String,
       enum: ['free', 'starter', 'pro'],
       default: 'free',
+    },
+    profile: {
+      role: String,
+      company: String,
+      website: String,
+      productDescription: String,
+      valueProposition: String,
+      usp: String,
     },
   },
   {

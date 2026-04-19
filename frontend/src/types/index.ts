@@ -1,9 +1,19 @@
+export interface UserProfile {
+  role?: string;
+  company?: string;
+  website?: string;
+  productDescription?: string;
+  valueProposition?: string;
+  usp?: string;
+}
+
 export interface User {
   userId: string;
   email: string;
   name: string;
   tokens: number;
   plan: 'free' | 'starter' | 'pro';
+  profile?: UserProfile;
 }
 
 export interface AuthResponse {
@@ -22,24 +32,26 @@ export interface AuthResponse {
 }
 
 export interface EmailGenerationInput {
-  senderName: string;
-  senderRole: string;
-  senderCompany: string;
-  senderWebsite: string;
-  productDescription: string;
-  targetIndustry: string;
-  targetRole: string;
-  companySize: string;
-  geography: string;
-  painPoints: string[];
-  valueProposition: string;
-  usp: string;
-  tone: 'professional' | 'casual' | 'persuasive' | 'friendly';
-  length: 'short' | 'medium' | 'long';
-  emailType: 'cold_outreach' | 'follow_up' | 'sales_pitch' | 'partnership' | 'job_inquiry';
-  ctaType: 'book_call' | 'reply' | 'demo_request' | 'other';
+  senderName?: string;
+  senderRole?: string;
+  senderCompany?: string;
+  senderWebsite?: string;
+  productDescription?: string;
+  targetIndustry?: string;
+  targetRole?: string;
+  companySize?: string;
+  geography?: string;
+  painPoints?: string[];
+  valueProposition?: string;
+  usp?: string;
+  tone?: 'professional' | 'casual' | 'persuasive' | 'friendly';
+  length?: 'short' | 'medium' | 'long';
+  emailType?: 'cold_outreach' | 'follow_up' | 'sales_pitch' | 'partnership' | 'job_inquiry';
+  ctaType?: 'book_call' | 'reply' | 'demo_request' | 'other';
   variations: number;
   generateSequence: boolean;
+  customPrompt?: string;
+  useCustomInput?: boolean;
 }
 
 export interface Email {

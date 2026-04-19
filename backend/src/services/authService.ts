@@ -1,33 +1,24 @@
 import { UserModel } from '../models/User';
-import { EmailGenerationModel } from '../models/EmailGeneration';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { generateToken, generateRefreshToken } from '../middleware/auth';
-import { User, ApiResponse } from '../types/index';
+import { ApiResponse } from '../types/index';
+import { logger } from '../utils/logger';
 
 export const authService = {
   async signup(name: string, email: string, password: string): Promise<ApiResponse<any>> {
+    logger.debug('authService.signup', { email });
     try {
       const existingUser = await UserModel.findOne({ email });
 
       if (existingUser) {
-        return {
-          success: false,
-          message: 'User already exists',
-          error: 'User with this email already registered',
-        };
+        logger.warn('Signup — user already exists', { email });
+        return { success: false, message: 'User already exists', error: 'User with this email already registered' };
       }
 
       const passwordHash = await hashPassword(password);
-
-      const newUser = new UserModel({
-        name,
-        email,
-        passwordHash,
-        tokens: 10, // Free plan
-        plan: 'free',
-      });
-
+      const newUser = new UserModel({ name, email, passwordHash, tokens: 10, plan: 'free' });
       await newUser.save();
+      logger.info('Signup — user created', { userId: newUser._id.toString(), email });
 
       const token = generateToken(newUser._id.toString(), newUser.email);
       const refreshToken = generateRefreshToken(newUser._id.toString(), newUser.email);
@@ -46,36 +37,29 @@ export const authService = {
         },
       };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Signup failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('authService.signup error', { email, error });
+      return { success: false, message: 'Signup failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 
   async login(email: string, password: string): Promise<ApiResponse<any>> {
+    logger.debug('authService.login', { email });
     try {
       const user = await UserModel.findOne({ email });
 
       if (!user) {
-        return {
-          success: false,
-          message: 'Invalid credentials',
-          error: 'User not found',
-        };
+        logger.warn('Login — user not found', { email });
+        return { success: false, message: 'Invalid credentials', error: 'User not found' };
       }
 
       const isPasswordValid = await verifyPassword(password, user.passwordHash);
 
       if (!isPasswordValid) {
-        return {
-          success: false,
-          message: 'Invalid credentials',
-          error: 'Incorrect password',
-        };
+        logger.warn('Login — incorrect password', { email });
+        return { success: false, message: 'Invalid credentials', error: 'Incorrect password' };
       }
 
+      logger.info('Login — success', { userId: user._id.toString(), email });
       const token = generateToken(user._id.toString(), user.email);
       const refreshToken = generateRefreshToken(user._id.toString(), user.email);
 
@@ -93,135 +77,124 @@ export const authService = {
         },
       };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Login failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('authService.login error', { email, error });
+      return { success: false, message: 'Login failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 
-  async getUserProfile(userId: string): Promise<ApiResponse<User>> {
+  async getUserProfile(userId: string): Promise<ApiResponse<any>> {
+    logger.debug('authService.getUserProfile', { userId });
     try {
       const user = await UserModel.findById(userId);
 
       if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
+        logger.warn('getUserProfile — user not found', { userId });
+        return { success: false, message: 'User not found' };
       }
 
+      logger.debug('getUserProfile — success', { userId });
       return {
         success: true,
         message: 'User profile retrieved',
         data: {
-          _id: user._id.toString(),
+          userId: user._id.toString(),
           name: user.name,
           email: user.email,
           tokens: user.tokens,
           plan: user.plan,
-          passwordHash: '', // Don't send password hash
+          profile: user.profile || {},
           createdAt: user.createdAt,
         },
       };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Failed to fetch profile',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('authService.getUserProfile error', { userId, error });
+      return { success: false, message: 'Failed to fetch profile', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async updateProfile(userId: string, profile: Record<string, string>): Promise<ApiResponse<any>> {
+    logger.debug('authService.updateProfile', { userId });
+    try {
+      const user = await UserModel.findByIdAndUpdate(
+        userId,
+        { $set: { profile } },
+        { new: true }
+      );
+
+      if (!user) {
+        logger.warn('updateProfile — user not found', { userId });
+        return { success: false, message: 'User not found' };
+      }
+
+      logger.info('updateProfile — success', { userId });
+      return { success: true, message: 'Profile updated successfully', data: { profile: user.profile } };
+    } catch (error) {
+      logger.error('authService.updateProfile error', { userId, error });
+      return { success: false, message: 'Failed to update profile', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 };
 
 export const tokenService = {
   async getUserTokens(userId: string): Promise<ApiResponse<number>> {
+    logger.debug('tokenService.getUserTokens', { userId });
     try {
       const user = await UserModel.findById(userId);
 
       if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
+        logger.warn('getUserTokens — user not found', { userId });
+        return { success: false, message: 'User not found' };
       }
 
-      return {
-        success: true,
-        message: 'Token balance retrieved',
-        data: user.tokens,
-      };
+      return { success: true, message: 'Token balance retrieved', data: user.tokens };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Failed to fetch tokens',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('tokenService.getUserTokens error', { userId, error });
+      return { success: false, message: 'Failed to fetch tokens', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 
   async deductTokens(userId: string, tokensToDeduct: number): Promise<ApiResponse<number>> {
+    logger.debug('tokenService.deductTokens', { userId, tokensToDeduct });
     try {
       const user = await UserModel.findById(userId);
 
       if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
+        logger.warn('deductTokens — user not found', { userId });
+        return { success: false, message: 'User not found' };
       }
 
       if (user.tokens < tokensToDeduct) {
-        return {
-          success: false,
-          message: 'Insufficient tokens',
-          error: `Need ${tokensToDeduct} tokens but only have ${user.tokens}`,
-        };
+        logger.warn('deductTokens — insufficient tokens', { userId, have: user.tokens, need: tokensToDeduct });
+        return { success: false, message: 'Insufficient tokens', error: `Need ${tokensToDeduct} tokens but only have ${user.tokens}` };
       }
 
       user.tokens -= tokensToDeduct;
       await user.save();
-
-      return {
-        success: true,
-        message: 'Tokens deducted successfully',
-        data: user.tokens,
-      };
+      logger.info('deductTokens — success', { userId, remaining: user.tokens });
+      return { success: true, message: 'Tokens deducted successfully', data: user.tokens };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Failed to deduct tokens',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('tokenService.deductTokens error', { userId, error });
+      return { success: false, message: 'Failed to deduct tokens', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 
   async addTokens(userId: string, tokensToAdd: number): Promise<ApiResponse<number>> {
+    logger.debug('tokenService.addTokens', { userId, tokensToAdd });
     try {
       const user = await UserModel.findById(userId);
 
       if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
+        logger.warn('addTokens — user not found', { userId });
+        return { success: false, message: 'User not found' };
       }
 
       user.tokens += tokensToAdd;
       await user.save();
-
-      return {
-        success: true,
-        message: 'Tokens added successfully',
-        data: user.tokens,
-      };
+      logger.info('addTokens — success', { userId, total: user.tokens });
+      return { success: true, message: 'Tokens added successfully', data: user.tokens };
     } catch (error) {
-      return {
-        success: false,
-        message: 'Failed to add tokens',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      };
+      logger.error('tokenService.addTokens error', { userId, error });
+      return { success: false, message: 'Failed to add tokens', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 };

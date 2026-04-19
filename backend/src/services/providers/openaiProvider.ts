@@ -1,5 +1,14 @@
 import { AIProvider } from '../../types/aiProvider';
 import { EmailGenerationInput, Email, SequenceEmail } from '../../types/index';
+import { logger } from '../../utils/logger';
+import {
+  buildEmailPrompt,
+  buildSequencePrompt,
+  buildCustomEmailPrompt,
+  buildCustomSequencePrompt,
+  SYSTEM_PROMPT_EMAIL,
+  SYSTEM_PROMPT_SEQUENCE,
+} from './emailPrompts';
 
 export class OpenAIProvider implements AIProvider {
   name = 'openai';
@@ -7,16 +16,24 @@ export class OpenAIProvider implements AIProvider {
   private model: string;
   private temperature: number;
 
-  constructor(apiKey: string, model: string = 'gpt-4', temperature: number = 0.7) {
+  constructor(apiKey: string, model: string = 'gpt-4o', temperature: number = 0.7) {
     this.apiKey = apiKey;
     this.model = model;
     this.temperature = temperature;
   }
 
   async generateEmails(input: EmailGenerationInput): Promise<Email[]> {
+    const prompt = input.useCustomInput && input.customPrompt
+      ? buildCustomEmailPrompt(input)
+      : buildEmailPrompt(input);
+
+    const variations = Math.min(Math.max(input.variations || 1, 1), 3);
+    const maxTokens = variations * 1500;
+
+    logger.debug('OpenAI generateEmails request', { model: this.model, variations, maxTokens });
+    logger.debug('OpenAI generateEmails input', prompt);
+
     try {
-      const prompt = this.buildEmailPrompt(input);
-      
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -28,36 +45,41 @@ export class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert cold email copywriter. Generate compelling, personalized cold emails that convert.',
+              content: SYSTEM_PROMPT_EMAIL,
             },
-            {
-              role: 'user',
-              content: prompt,
-            },
+            { role: 'user', content: prompt },
           ],
           temperature: this.temperature,
-          max_tokens: 2000,
+          max_tokens: maxTokens,
+          response_format: { type: 'json_object' },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        const errorText = await response.text();
+        logger.error('OpenAI API HTTP error', { status: response.status, body: errorText });
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
       const data = (await response.json()) as any;
       const content = data.choices[0].message.content;
+      logger.debug('OpenAI raw response received', { contentLength: content.length });
 
       return this.parseEmailsFromResponse(content, input.variations);
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      logger.error('OpenAI generateEmails failed', { error });
       throw error;
     }
   }
 
   async generateSequence(input: EmailGenerationInput): Promise<SequenceEmail[]> {
-    try {
-      const prompt = this.buildSequencePrompt(input);
+    const prompt = input.useCustomInput && input.customPrompt
+      ? buildCustomSequencePrompt(input)
+      : buildSequencePrompt(input);
 
+    logger.debug('OpenAI generateSequence request', { model: this.model });
+
+    try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -69,117 +91,88 @@ export class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert email sequence strategist. Create a compelling email sequence that maximizes engagement and conversions.',
+              content: SYSTEM_PROMPT_SEQUENCE,
             },
-            {
-              role: 'user',
-              content: prompt,
-            },
+            { role: 'user', content: prompt },
           ],
           temperature: this.temperature,
-          max_tokens: 3000,
+          max_tokens: 4000,
+          response_format: { type: 'json_object' },
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI API error: ${response.statusText}`);
+        const errorText = await response.text();
+        logger.error('OpenAI API HTTP error', { status: response.status, body: errorText });
+        throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
       }
 
       const data = (await response.json()) as any;
       const content = data.choices[0].message.content;
+      logger.debug('OpenAI sequence raw response received', { contentLength: content.length });
 
       return this.parseSequenceFromResponse(content);
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      logger.error('OpenAI generateSequence failed', { error });
       throw error;
     }
   }
 
-  private buildEmailPrompt(input: EmailGenerationInput): string {
-    return `Generate ${input.variations} unique, compelling cold email variations based on:
-
-Sender Information:
-- Name: ${input.senderName}
-- Title: ${input.senderRole}
-- Company: ${input.senderCompany}
-
-Target Information:
-- Industry: ${input.targetIndustry}
-- Role: ${input.targetRole}
-- Pain Points: ${input.painPoints?.join(', ') || 'N/A'}
-
-Value Proposition:
-- USP: ${input.usp}
-- Value Proposition: ${input.valueProposition}
-- Product Description: ${input.productDescription}
-
-Email Tone: ${input.tone || 'professional yet friendly'}
-
-Requirements:
-- Each email should be unique and compelling
-- Keep subjects under 60 characters
-- Keep bodies concise (50-100 words)
-- Include a clear call-to-action
-- Personalize when possible
-- Format as JSON array with {subject, body} objects
-
-Return ONLY valid JSON array, no other text.`;
-  }
-
-  private buildSequencePrompt(input: EmailGenerationInput): string {
-    return `Create a 4-email cold outreach sequence for:
-
-Sender: ${input.senderName} from ${input.senderCompany} (${input.senderRole})
-Target: ${input.targetRole} in ${input.targetIndustry} industry
-Pain Points: ${input.painPoints?.join(', ') || 'Various challenges'}
-Value Prop: ${input.valueProposition}
-
-Sequence should:
-- Day 1: Initial value-driven outreach
-- Day 3: Provide additional value/social proof
-- Day 7: Different angle, raise urgency
-- Day 14: Final attempt with new angle
-
-Format as JSON array with {day, subject, body} objects.
-Return ONLY valid JSON array, no other text.`;
+  private sanitizeJson(raw: string): string {
+    // Strip markdown code fences if present
+    const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    return stripped.replace(
+      /"((?:[^"\\]|\\.)*)"/gs,
+      (_match, inner) => {
+        const fixed = inner
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\r')
+          .replace(/\t/g, '\\t');
+        return `"${fixed}"`;
+      }
+    );
   }
 
   private parseEmailsFromResponse(content: string, variations: number): Email[] {
     try {
-      // Extract JSON from response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      const sanitized = this.sanitizeJson(content);
+      const parsed = JSON.parse(sanitized);
+
+      const emails: any[] = parsed.emails ?? parsed;
+      if (!Array.isArray(emails)) {
+        throw new Error('Expected emails array in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.slice(0, variations).map((email: any, index: number) => ({
+      logger.debug('Parsed emails', { count: emails.length });
+      return emails.slice(0, variations).map((email: any, index: number) => ({
         subject: email.subject || email.Subject || '',
         body: email.body || email.Body || '',
         variation: index + 1,
       }));
     } catch (error) {
-      console.error('Failed to parse OpenAI response:', error);
+      logger.error('Failed to parse OpenAI email response', { error, content });
       throw new Error('Failed to parse email generation response');
     }
   }
 
   private parseSequenceFromResponse(content: string): SequenceEmail[] {
     try {
-      // Extract JSON from response
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('No JSON array found in response');
+      const sanitized = this.sanitizeJson(content);
+      const parsed = JSON.parse(sanitized);
+
+      const sequence: any[] = parsed.sequence ?? parsed;
+      if (!Array.isArray(sequence)) {
+        throw new Error('Expected sequence array in response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      return parsed.map((email: any) => ({
+      logger.debug('Parsed sequence', { steps: sequence.length });
+      return sequence.map((email: any) => ({
         day: email.day || email.Day || 1,
         subject: email.subject || email.Subject || '',
         body: email.body || email.Body || '',
       }));
     } catch (error) {
-      console.error('Failed to parse OpenAI response:', error);
+      logger.error('Failed to parse OpenAI sequence response', { error, content });
       throw new Error('Failed to parse sequence generation response');
     }
   }

@@ -22,6 +22,9 @@ export default function Navbar() {
               <Link href="/generate" className="hover:text-secondary transition">
                 Generate
               </Link>
+              <Link href="/profile" className="hover:text-secondary transition">
+                Profile
+              </Link>
               <Link href="/billing" className="hover:text-secondary transition">
                 Billing
               </Link>

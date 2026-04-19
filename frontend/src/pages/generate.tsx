@@ -6,9 +6,16 @@ import { useEmailStore } from '../lib/emailStore';
 import EmailPreview from '../components/email/EmailPreview';
 
 export default function GeneratePage() {
-  useRequireAuth(); // Ensure user is authenticated
-
+  const { isAuthenticated, hasLoaded } = useRequireAuth();
   const { currentGeneration } = useEmailStore();
+
+  if (!hasLoaded) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4">
