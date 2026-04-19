@@ -443,6 +443,9 @@ export default function EmailGenerationForm() {
                   max="3"
                   className="w-full border rounded px-3 py-2"
                 />
+                <p className="text-xs text-blue-600 mt-1">
+                  This will consume <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''} from your balance ({variationsValue} variation{variationsValue > 1 ? 's' : ''})
+                </p>
               </div>
 
               {/* <div className="flex items-end">
