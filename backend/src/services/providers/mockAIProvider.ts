@@ -55,10 +55,14 @@ export class MockAIProvider implements AIProvider {
       `Been following ${input.targetIndustry || 'your industry'}} trends. Your team seems like a good match for what we're building. Quick call next week?`,
     ];
 
+    const instructionNote = input.customPrompt?.trim()
+      ? ` [User instruction applied: "${input.customPrompt.trim().slice(0, 60)}${input.customPrompt.trim().length > 60 ? '…' : ''}"]`
+      : '';
+
     for (let i = 0; i < input.variations; i++) {
       emails.push({
         subject: mockSubjects[i % mockSubjects.length],
-        body: mockBodies[i % mockBodies.length],
+        body: mockBodies[i % mockBodies.length] + instructionNote,
         variation: i + 1,
       });
     }

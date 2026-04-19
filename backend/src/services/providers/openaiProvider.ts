@@ -126,6 +126,10 @@ Return a JSON object in this exact format:
   }
 
   private buildEmailPrompt(input: EmailGenerationInput): string {
+    const userInstruction = input.customPrompt?.trim()
+      ? `\nUser Instructions (apply these on top of the above):\n${input.customPrompt.trim()}\n`
+      : '';
+
     return `Generate ${input.variations} unique, compelling cold email variations based on:
 
 Sender Information:
@@ -144,7 +148,7 @@ Value Proposition:
 - Product Description: ${input.productDescription}
 
 Email Tone: ${input.tone || 'professional'}
-
+${userInstruction}
 Requirements:
 - Each email must be unique and compelling
 - Subjects under 60 characters
@@ -156,13 +160,17 @@ Return a JSON object in this exact format:
   }
 
   private buildSequencePrompt(input: EmailGenerationInput): string {
+    const userInstruction = input.customPrompt?.trim()
+      ? `\nUser Instructions (apply these on top of the above):\n${input.customPrompt.trim()}\n`
+      : '';
+
     return `Create a 4-email cold outreach sequence for:
 
 Sender: ${input.senderName} from ${input.senderCompany} (${input.senderRole})
 Target: ${input.targetRole} in ${input.targetIndustry} industry
 Pain Points: ${input.painPoints?.join(', ') || 'Various challenges'}
 Value Prop: ${input.valueProposition}
-
+${userInstruction}
 Sequence:
 - Day 1: Initial value-driven outreach
 - Day 3: Additional value/social proof

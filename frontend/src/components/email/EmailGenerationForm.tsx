@@ -76,29 +76,18 @@ export default function EmailGenerationForm() {
         };
         setEmailType('custom_prompt');
       } else {
-        // For structured input mode
-        // Check if custom prompt is provided - it takes preference
-        if (data.customPrompt && data.customPrompt.trim().length > 0) {
-          processedData = {
-            variations: data.variations || 1,
-            generateSequence: data.generateSequence || false,
-            customPrompt: data.customPrompt,
-            useCustomInput: true,
-          };
-          setEmailType('custom_prompt');
-        } else {
-          // Convert painPoints from comma-separated string to array
-          const painPointsArray = typeof data.painPoints === 'string'
-            ? data.painPoints.split(',').map((point: string) => point.trim()).filter((point: string) => point.length > 0)
-            : Array.isArray(data.painPoints) ? data.painPoints : [];
+        // Structured input mode — always use structured fields; customPrompt is extra user instruction
+        const painPointsArray = typeof data.painPoints === 'string'
+          ? data.painPoints.split(',').map((point: string) => point.trim()).filter((point: string) => point.length > 0)
+          : Array.isArray(data.painPoints) ? data.painPoints : [];
 
-          processedData = {
-            ...data,
-            painPoints: painPointsArray,
-            useCustomInput: false,
-          };
-          setEmailType(processedData.emailType || 'cold_outreach');
-        }
+        processedData = {
+          ...data,
+          painPoints: painPointsArray,
+          customPrompt: data.customPrompt?.trim() || undefined,
+          useCustomInput: false,
+        };
+        setEmailType(processedData.emailType || 'cold_outreach');
       }
 
       await generateEmails(processedData);
@@ -350,16 +339,16 @@ export default function EmailGenerationForm() {
 
             <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
               <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                <span>✨ Custom Generation Prompt (Optional)</span>
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Takes Priority</span>
+                <span>✨ User Instruction (Optional)</span>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Extra guidance</span>
               </label>
               <p className="text-xs text-gray-600 mb-2">
-                If provided, this custom prompt will override the structured form fields above for email generation.
+                Additional instructions applied on top of the structured fields above (e.g. tone nuances, specific angles, things to avoid).
               </p>
               <textarea
                 {...register('customPrompt')}
                 className="w-full border border-blue-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-blue-500"
-                placeholder="e.g., Generate cold emails that emphasize ROI and quick implementation. Use data-driven language and include specific metrics where possible..."
+                placeholder="e.g., Emphasize ROI and quick implementation. Use data-driven language. Avoid mentioning competitors directly."
                 rows={3}
               />
             </div>
