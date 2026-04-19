@@ -16,11 +16,21 @@ export default function EmailGenerationForm() {
   const { generateEmails, loading, error } = useEmailGeneration();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const onSubmit = async (data: EmailGenerationInput) => {
+  const onSubmit = async (data: any) => {
     setSuccessMessage(null);
 
     try {
-      await generateEmails(data);
+      // Convert painPoints from comma-separated string to array
+      const painPointsArray = typeof data.painPoints === 'string'
+        ? data.painPoints.split(',').map((point: string) => point.trim()).filter((point: string) => point.length > 0)
+        : Array.isArray(data.painPoints) ? data.painPoints : [];
+
+      const processedData: EmailGenerationInput = {
+        ...data,
+        painPoints: painPointsArray,
+      };
+
+      await generateEmails(processedData);
       setSuccessMessage('Emails generated successfully!');
     } catch (err) {
       // Error is handled in the hook
@@ -158,7 +168,16 @@ export default function EmailGenerationForm() {
       <div className="mb-6">
         <label className="block text-sm font-medium mb-2">Pain Points</label>
         <input
-          {...register('painPoints', { required: 'At least one pain point is required' })}
+          {...register('painPoints', { 
+            required: 'At least one pain point is required',
+            validate: (value) => {
+              if (typeof value === 'string') {
+                const points = value.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                return points.length > 0 || 'Enter at least one pain point (separate with commas)';
+              }
+              return Array.isArray(value) && value.length > 0 || 'At least one pain point is required';
+            }
+          })}
           type="text"
           className="w-full border rounded px-3 py-2"
           placeholder="Separate with commas: slow processes, high costs, etc"

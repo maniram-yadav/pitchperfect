@@ -9,6 +9,7 @@ interface EmailGenerationDocument extends Document {
     sequence?: Array<{ day: number; subject: string; body: string }>;
   };
   tokensUsed: number;
+  provider: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -71,6 +72,11 @@ const emailGenerationSchema = new Schema<EmailGenerationDocument>(
     tokensUsed: {
       type: Number,
       default: 1,
+    },
+    provider: {
+      type: String,
+      default: 'openai',
+      enum: ['openai', 'mock'],
     },
   },
   {

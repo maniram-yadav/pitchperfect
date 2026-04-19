@@ -2,58 +2,11 @@ import { EmailGenerationInput, Email, SequenceEmail, ApiResponse } from '../type
 import { EmailGenerationModel } from '../models/EmailGeneration';
 import { tokenService } from './authService';
 import { EMAIL_TOKENS } from '../utils/constants';
+import { config } from '../config/env';
+import { AIProviderFactory } from './aiProviderFactory';
 
-// Mock AI response - Replace with actual OpenAI API call
-const generateEmailsWithAI = async (input: EmailGenerationInput): Promise<Email[]> => {
-  // TODO: Integrate with OpenAI API
-  // For now, returning mock data
-  const emails: Email[] = [];
-
-  const mockSubjects = [
-    `Quick question about ${input.targetIndustry}`,
-    `${input.senderCompany} + ${input.targetIndustry} = 🚀`,
-    `Worth a 15 min call?`,
-    `Helping ${input.targetRole}s reduce ${input.painPoints[0] || 'complexity'}`,
-  ];
-
-  const mockBodies = [
-    `Hi, I noticed you're in ${input.targetIndustry}. We help companies like yours with ${input.valueProposition}. Would love to chat about ${input.usp}. Free?`,
-    `Quick thought - we've helped similar companies reduce time by 40%. Curious if you're open to a brief conversation?`,
-    `${input.senderName} here from ${input.senderCompany}. Saw your profile and thought ${input.productDescription} might interest you.`,
-    `Hey! Noticed you're focused on ${input.targetIndustry}. We solve this exact problem - ${input.valueProposition}. Chat?`,
-  ];
-
-  for (let i = 0; i < input.variations; i++) {
-    emails.push({
-      subject: mockSubjects[i % mockSubjects.length],
-      body: mockBodies[i % mockBodies.length],
-      variation: i + 1,
-    });
-  }
-
-  return emails;
-};
-
-const generateSequence = (): SequenceEmail[] => {
-  // TODO: Generate proper sequences based on input
-  return [
-    {
-      day: 1,
-      subject: 'Initial outreach',
-      body: 'First email in sequence',
-    },
-    {
-      day: 3,
-      subject: 'Follow-up: Checking in',
-      body: 'Second email with additional value prop',
-    },
-    {
-      day: 7,
-      subject: 'Final: Worth a quick call?',
-      body: 'Last email with clear CTA',
-    },
-  ];
-};
+// Initialize AI provider based on configuration
+const aiProvider = AIProviderFactory.createProvider(config.aiProvider);
 
 export const emailGenerationService = {
   async generateEmails(userId: string, input: EmailGenerationInput): Promise<ApiResponse<any>> {
@@ -82,11 +35,14 @@ export const emailGenerationService = {
       // Deduct tokens
       await tokenService.deductTokens(userId, tokensRequired);
 
-      // Generate emails with AI
-      const emails = await generateEmailsWithAI(input);
+      // Generate emails with AI provider
+      const emails = await aiProvider.generateEmails(input);
 
       // Generate sequence if requested
-      const sequence = input.generateSequence ? generateSequence() : undefined;
+      let sequence: SequenceEmail[] | undefined;
+      if (input.generateSequence) {
+        sequence = await aiProvider.generateSequence(input);
+      }
 
       // Save to database
       const emailGeneration = new EmailGenerationModel({
@@ -97,6 +53,7 @@ export const emailGenerationService = {
           sequence,
         },
         tokensUsed: tokensRequired,
+        provider: aiProvider.name,
       });
 
       await emailGeneration.save();
@@ -109,6 +66,7 @@ export const emailGenerationService = {
           emails,
           sequence,
           tokensUsed: tokensRequired,
+          provider: aiProvider.name,
         },
       };
     } catch (error) {

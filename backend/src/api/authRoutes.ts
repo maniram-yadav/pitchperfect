@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { authService } from '../services/authService';
 import { validateEmail, validatePassword } from '../utils/security';
 import { authLimiter } from '../middleware/rateLimiter';
+import { verifyToken } from '../middleware/auth';
 
 const router = Router();
 
@@ -79,7 +80,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response): Promise<
 });
 
 // GET /api/auth/profile
-router.get('/profile', async (req: Request, res: Response): Promise<void> => {
+router.get('/profile', verifyToken, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.userId;
 

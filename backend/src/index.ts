@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { connectDB } from './config/database';
 import { config } from './config/env';
 import { verifyToken } from './middleware/auth';
@@ -10,23 +11,19 @@ import paymentRoutes from './api/paymentRoutes';
 const app = express();
 
 // Middleware
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
 app.use(express.json());
 app.use(apiLimiter);
 
 // Routes
-app.post('/api/auth/signup', authRoutes);
-app.post('/api/auth/login', authRoutes);
-app.get('/api/auth/profile', verifyToken, authRoutes);
-
-app.post('/api/email/generate', verifyToken, emailRoutes);
-app.get('/api/email/history', verifyToken, emailRoutes);
-app.get('/api/email/:generationId', verifyToken, emailRoutes);
-
-app.post('/api/payment/initiate', verifyToken, paymentRoutes);
-app.post('/api/payment/success', verifyToken, paymentRoutes);
-app.post('/api/payment/failure', paymentRoutes);
-app.get('/api/payment/history', verifyToken, paymentRoutes);
-app.get('/api/tokens/balance', verifyToken, paymentRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/email', verifyToken, emailRoutes);
+app.use('/api/payment', verifyToken, paymentRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

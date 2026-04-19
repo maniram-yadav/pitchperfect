@@ -39,6 +39,7 @@ export interface EmailGeneration {
     sequence?: SequenceEmail[];
   };
   tokensUsed: number;
+  provider: string;
   createdAt?: Date;
 }
 
@@ -78,3 +79,6 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
 }
+
+// Re-export AI provider types for convenience
+export type { AIProvider, AIProviderConfig, AIGenerationResult } from './aiProvider';
