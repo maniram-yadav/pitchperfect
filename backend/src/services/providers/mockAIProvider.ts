@@ -10,6 +10,33 @@ export class MockAIProvider implements AIProvider {
 
     const emails: Email[] = [];
 
+    // If custom input is provided, generate mock emails based on it
+    if (input.useCustomInput && input.customPrompt) {
+      const customSubjects = [
+        `[Custom] Inquiry about collaboration`,
+        `[Custom] Thought about your recent work`,
+        `[Custom] Quick opportunity to discuss`,
+        `[Custom] Interested in connecting`,
+      ];
+
+      const customBodies = [
+        `Based on your profile and my research, I think there's a strong potential fit. I'd love to discuss how we might collaborate.\n\nWould you be open to a conversation?`,
+        `I've been reviewing your work in this space and think our approaches align well. Could be valuable to connect.\n\nFree for a quick call?`,
+        `Your experience aligns with what we're building. I think a discussion could be mutually beneficial.\n\nInterested in learning more?`,
+        `I came across your recent projects and was impressed. I think we should explore potential synergies.\n\nWould you be available to chat?`,
+      ];
+
+      for (let i = 0; i < input.variations; i++) {
+        emails.push({
+          subject: customSubjects[i % customSubjects.length],
+          body: customBodies[i % customBodies.length],
+          variation: i + 1,
+        });
+      }
+      return emails;
+    }
+
+    // Default behavior for structured input
     const mockSubjects = [
       `Quick question about ${input.targetIndustry || 'your industry'}`,
       `${input.senderCompany || 'We'} + ${input.targetIndustry || 'your niche'} = 🚀`,

@@ -1,8 +1,9 @@
 import { useAuthStore } from '../lib/authStore';
 import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 
 export const useAuth = () => {
-  const { user, token, isAuthenticated, setUser, setToken, logout, loadFromStorage } = useAuthStore();
+  const { user, token, isAuthenticated, hasLoaded, setUser, setToken, logout, loadFromStorage } = useAuthStore();
 
   useEffect(() => {
     loadFromStorage();
@@ -12,6 +13,7 @@ export const useAuth = () => {
     user,
     token,
     isAuthenticated,
+    hasLoaded,
     setUser,
     setToken,
     logout,
@@ -19,14 +21,14 @@ export const useAuth = () => {
 };
 
 export const useRequireAuth = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, hasLoaded } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      // Redirect to login
-      window.location.href = '/login';
+    if (hasLoaded && !isAuthenticated) {
+      router.push('/login');
     }
-  }, [isAuthenticated]);
+  }, [hasLoaded, isAuthenticated, router]);
 
-  return isAuthenticated;
+  return { isAuthenticated, hasLoaded };
 };

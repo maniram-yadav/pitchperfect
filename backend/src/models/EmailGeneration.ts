@@ -52,6 +52,8 @@ const emailGenerationSchema = new Schema<EmailGenerationDocument>(
       },
       variations: Number,
       generateSequence: Boolean,
+      customPrompt: String,
+      useCustomInput: Boolean,
     },
     generatedOutput: {
       emails: [

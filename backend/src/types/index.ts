@@ -18,24 +18,26 @@ export interface User {
 }
 
 export interface EmailGenerationInput {
-  senderName: string;
-  senderRole: string;
-  senderCompany: string;
-  senderWebsite: string;
-  productDescription: string;
-  targetIndustry: string;
-  targetRole: string;
-  companySize: string;
-  geography: string;
-  painPoints: string[];
-  valueProposition: string;
-  usp: string;
-  tone: 'professional' | 'casual' | 'persuasive' | 'friendly';
-  length: 'short' | 'medium' | 'long';
-  emailType: 'cold_outreach' | 'follow_up' | 'sales_pitch' | 'partnership' | 'job_inquiry';
-  ctaType: 'book_call' | 'reply' | 'demo_request' | 'other';
+  senderName?: string;
+  senderRole?: string;
+  senderCompany?: string;
+  senderWebsite?: string;
+  productDescription?: string;
+  targetIndustry?: string;
+  targetRole?: string;
+  companySize?: string;
+  geography?: string;
+  painPoints?: string[];
+  valueProposition?: string;
+  usp?: string;
+  tone?: 'professional' | 'casual' | 'persuasive' | 'friendly';
+  length?: 'short' | 'medium' | 'long';
+  emailType?: 'cold_outreach' | 'follow_up' | 'sales_pitch' | 'partnership' | 'job_inquiry';
+  ctaType?: 'book_call' | 'reply' | 'demo_request' | 'other';
   variations: number;
   generateSequence: boolean;
+  customPrompt?: string;
+  useCustomInput?: boolean;
 }
 
 export interface EmailGeneration {

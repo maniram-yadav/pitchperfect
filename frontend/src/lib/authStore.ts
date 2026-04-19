@@ -5,6 +5,7 @@ interface AuthStore {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  hasLoaded: boolean;
   setUser: (user: User | null) => void;
   setToken: (token: string | null) => void;
   logout: () => void;
@@ -15,6 +16,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  hasLoaded: false,
   
   setUser: (user) => {
     set({ user, isAuthenticated: !!user });
@@ -43,13 +45,11 @@ export const useAuthStore = create<AuthStore>((set) => ({
   loadFromStorage: () => {
     const user = localStorage.getItem('user');
     const token = localStorage.getItem('token');
-    
+
     if (user && token) {
-      set({
-        user: JSON.parse(user),
-        token,
-        isAuthenticated: true,
-      });
+      set({ user: JSON.parse(user), token, isAuthenticated: true, hasLoaded: true });
+    } else {
+      set({ hasLoaded: true });
     }
   },
 }));

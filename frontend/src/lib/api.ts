@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { AuthResponse } from '../types/index';
+import { AuthResponse, UserProfile } from '../types/index';
 
 export const authAPI = {
   async signup(
@@ -26,6 +26,16 @@ export const authAPI = {
   },
 
   async getProfile(): Promise<any> {
+    const response = await apiClient.get('/api/auth/profile');
+    return response.data;
+  },
+
+  async updateProfile(profile: UserProfile): Promise<any> {
+    const response = await apiClient.put('/api/auth/profile', { profile });
+    return response.data;
+  },
+
+  async getUserProfile(): Promise<any> {
     const response = await apiClient.get('/api/auth/profile');
     return response.data;
   },
