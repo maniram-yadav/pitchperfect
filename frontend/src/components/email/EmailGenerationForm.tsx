@@ -440,12 +440,12 @@ export default function EmailGenerationForm() {
                 />
               </div>
 
-              <div className="flex items-end">
+              {/* <div className="flex items-end">
                 <label className="flex items-center">
                   <input {...register('generateSequence')} type="checkbox" className="mr-2" />
                   <span>Generate Email Sequence</span>
                 </label>
-              </div>
+              </div> */}
             </div>
           </>
         )}

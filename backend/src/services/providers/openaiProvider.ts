@@ -47,7 +47,8 @@ export class OpenAIProvider implements AIProvider {
             { role: 'user', content: prompt },
           ],
           temperature: this.temperature,
-          max_tokens: 2000,
+          max_tokens: 4000,
+          response_format: { type: 'json_object' },
         }),
       });
 
@@ -92,7 +93,8 @@ export class OpenAIProvider implements AIProvider {
             { role: 'user', content: prompt },
           ],
           temperature: this.temperature,
-          max_tokens: 3000,
+          max_tokens: 4000,
+          response_format: { type: 'json_object' },
         }),
       });
 
@@ -114,7 +116,9 @@ export class OpenAIProvider implements AIProvider {
   }
 
   private sanitizeJson(raw: string): string {
-    return raw.replace(
+    // Strip markdown code fences if present
+    const stripped = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+    return stripped.replace(
       /"((?:[^"\\]|\\.)*)"/gs,
       (_match, inner) => {
         const fixed = inner
