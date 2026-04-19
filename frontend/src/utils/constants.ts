@@ -55,7 +55,7 @@ export const CTA_TYPE_OPTIONS = [
   'other',
 ] as const;
 
-export const PLAN_DATA = [
+export const PLAN_DATA: import('../types/index').Plan[] = [
   {
     name: 'free',
     tokens: 10,

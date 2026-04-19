@@ -32,7 +32,7 @@ export default function EmailGenerationForm() {
       targetRole: '',
       companySize: '',
       geography: '',
-      painPoints: '',
+      painPoints: [],
       tone: 'professional',
       length: 'medium',
       emailType: 'cold_outreach',
@@ -325,11 +325,12 @@ export default function EmailGenerationForm() {
                 {...register('painPoints', { 
                   required: 'At least one pain point is required',
                   validate: (value) => {
-                    if (typeof value === 'string') {
-                      const points = value.split(',').map(p => p.trim()).filter(p => p.length > 0);
+                    const raw = value as unknown as string | string[];
+                    if (typeof raw === 'string') {
+                      const points = raw.split(',').map(p => p.trim()).filter(p => p.length > 0);
                       return points.length > 0 || 'Enter at least one pain point (separate with commas)';
                     }
-                    return Array.isArray(value) && value.length > 0 || 'At least one pain point is required';
+                    return Array.isArray(raw) && raw.length > 0 || 'At least one pain point is required';
                   }
                 })}
                 type="text"

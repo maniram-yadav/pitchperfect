@@ -12,7 +12,7 @@ interface EmailStore {
   addGeneration: (generation: Generation) => void;
 }
 
-export const useEmailStore = create<EmailStore>(
+export const useEmailStore = create<EmailStore>()(
   persist(
     (set) => ({
       generations: [],
