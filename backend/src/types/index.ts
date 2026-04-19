@@ -5,6 +5,14 @@ export interface User {
   passwordHash: string;
   tokens: number;
   plan: 'free' | 'starter' | 'pro';
+  profile?: {
+    role?: string;
+    company?: string;
+    website?: string;
+    productDescription?: string;
+    valueProposition?: string;
+    usp?: string;
+  };
   createdAt?: Date;
   updatedAt?: Date;
 }
