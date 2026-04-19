@@ -110,6 +110,8 @@ export default function EmailGenerationForm() {
   };
 
   const painPointsValue = watch('painPoints');
+  const variationsValue = watch('variations') || 1;
+  const estimatedTokens = variationsValue;
 
   return (
     <>
@@ -176,12 +178,15 @@ export default function EmailGenerationForm() {
               <div>
                 <label className="block text-sm font-medium mb-2">Number of Variations</label>
                 <input
-                  {...register('variations', { required: true, min: 1, max: 5, valueAsNumber: true })}
+                  {...register('variations', { required: true, min: 1, max: 3, valueAsNumber: true })}
                   type="number"
                   min="1"
-                  max="5"
+                  max="3"
                   className="w-full border rounded px-3 py-2"
                 />
+                <p className="text-xs text-blue-600 mt-1">
+                  This will consume <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''} from your balance ({variationsValue} variation{variationsValue > 1 ? 's' : ''})
+                </p>
               </div>
 
               <div className="flex items-end">
@@ -432,10 +437,10 @@ export default function EmailGenerationForm() {
               <div>
                 <label className="block text-sm font-medium mb-1">Number of Variations</label>
                 <input
-                  {...register('variations', { required: true, min: 1, max: 5, valueAsNumber: true })}
+                  {...register('variations', { required: true, min: 1, max: 3, valueAsNumber: true })}
                   type="number"
                   min="1"
-                  max="5"
+                  max="3"
                   className="w-full border rounded px-3 py-2"
                 />
               </div>

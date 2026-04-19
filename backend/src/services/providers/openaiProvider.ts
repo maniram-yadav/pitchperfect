@@ -27,7 +27,10 @@ export class OpenAIProvider implements AIProvider {
       ? buildCustomEmailPrompt(input)
       : buildEmailPrompt(input);
 
-    logger.debug('OpenAI generateEmails request', { model: this.model, variations: input.variations });
+    const variations = Math.min(Math.max(input.variations || 1, 1), 3);
+    const maxTokens = variations * 1500;
+
+    logger.debug('OpenAI generateEmails request', { model: this.model, variations, maxTokens });
     logger.debug('OpenAI generateEmails input', prompt);
 
     try {
@@ -47,7 +50,7 @@ export class OpenAIProvider implements AIProvider {
             { role: 'user', content: prompt },
           ],
           temperature: this.temperature,
-          max_tokens: 4000,
+          max_tokens: maxTokens,
           response_format: { type: 'json_object' },
         }),
       });

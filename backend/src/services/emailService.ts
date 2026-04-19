@@ -18,8 +18,9 @@ export const emailGenerationService = {
         return { success: false, message: 'Failed to check token balance' };
       }
 
-      const tokensRequired = input.generateSequence ? EMAIL_TOKENS.sequence : EMAIL_TOKENS.single;
-      logger.debug('generateEmails — token check', { userId, balance: tokenCheckResult.data, required: tokensRequired });
+      const variations = Math.min(Math.max(input.variations || 1, 1), 3);
+      const tokensRequired = input.generateSequence ? EMAIL_TOKENS.sequence : variations;
+      logger.debug('generateEmails — token check', { userId, balance: tokenCheckResult.data, required: tokensRequired, variations });
 
       if (tokenCheckResult.data < tokensRequired) {
         logger.warn('generateEmails — insufficient tokens', { userId, balance: tokenCheckResult.data, required: tokensRequired });
