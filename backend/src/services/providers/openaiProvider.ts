@@ -1,6 +1,14 @@
 import { AIProvider } from '../../types/aiProvider';
 import { EmailGenerationInput, Email, SequenceEmail } from '../../types/index';
 import { logger } from '../../utils/logger';
+import {
+  buildEmailPrompt,
+  buildSequencePrompt,
+  buildCustomEmailPrompt,
+  buildCustomSequencePrompt,
+  SYSTEM_PROMPT_EMAIL,
+  SYSTEM_PROMPT_SEQUENCE,
+} from './emailPrompts';
 
 export class OpenAIProvider implements AIProvider {
   name = 'openai';
@@ -16,13 +24,12 @@ export class OpenAIProvider implements AIProvider {
 
   async generateEmails(input: EmailGenerationInput): Promise<Email[]> {
     const prompt = input.useCustomInput && input.customPrompt
-      ? this.buildCustomEmailPrompt(input)
-      : this.buildEmailPrompt(input);
+      ? buildCustomEmailPrompt(input)
+      : buildEmailPrompt(input);
 
-    
     logger.debug('OpenAI generateEmails request', { model: this.model, variations: input.variations });
-    logger.debug('OpenAI generateEmails input', prompt );
-    
+    logger.debug('OpenAI generateEmails input', prompt);
+
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -35,7 +42,7 @@ export class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert cold email copywriter. Generate compelling, personalized cold emails. Always respond with valid JSON.',
+              content: SYSTEM_PROMPT_EMAIL,
             },
             { role: 'user', content: prompt },
           ],
@@ -63,8 +70,8 @@ export class OpenAIProvider implements AIProvider {
 
   async generateSequence(input: EmailGenerationInput): Promise<SequenceEmail[]> {
     const prompt = input.useCustomInput && input.customPrompt
-      ? this.buildCustomSequencePrompt(input)
-      : this.buildSequencePrompt(input);
+      ? buildCustomSequencePrompt(input)
+      : buildSequencePrompt(input);
 
     logger.debug('OpenAI generateSequence request', { model: this.model });
 
@@ -80,7 +87,7 @@ export class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: 'You are an expert email sequence strategist. Create compelling email sequences. Always respond with valid JSON.',
+              content: SYSTEM_PROMPT_SEQUENCE,
             },
             { role: 'user', content: prompt },
           ],
@@ -106,83 +113,7 @@ export class OpenAIProvider implements AIProvider {
     }
   }
 
-  private buildCustomEmailPrompt(input: EmailGenerationInput): string {
-    return `${input.customPrompt}
-
-Generate exactly ${input.variations} unique email variation${input.variations > 1 ? 's' : ''}.
-
-Return a JSON object in this exact format:
-{"emails": [{"subject": "...", "body": "..."}, ...]}`;
-  }
-
-  private buildCustomSequencePrompt(input: EmailGenerationInput): string {
-    return `${input.customPrompt}
-
-Create a 4-email sequence based on the above requirements.
-Days should be: 1, 3, 7, 14.
-
-Return a JSON object in this exact format:
-{"sequence": [{"day": 1, "subject": "...", "body": "..."}, ...]}`;
-  }
-
-  private buildEmailPrompt(input: EmailGenerationInput): string {
-    const userInstruction = input.customPrompt?.trim()
-      ? `\nUser Instructions (apply these on top of the above):\n${input.customPrompt.trim()}\n`
-      : '';
-
-    return `Generate ${input.variations} unique, compelling cold email variations based on:
-
-Sender Information:
-- Name: ${input.senderName}
-- Title: ${input.senderRole}
-- Company: ${input.senderCompany}
-
-Target Information:
-- Industry: ${input.targetIndustry}
-- Role: ${input.targetRole}
-- Pain Points: ${input.painPoints?.join(', ') || 'N/A'}
-
-Value Proposition:
-- USP: ${input.usp}
-- Value Proposition: ${input.valueProposition}
-- Product Description: ${input.productDescription}
-
-Email Tone: ${input.tone || 'professional'}
-${userInstruction}
-Requirements:
-- Each email must be unique and compelling
-- Subjects under 60 characters
-- Body concise (50-100 words)
-- Clear call-to-action
-
-Return a JSON object in this exact format:
-{"emails": [{"subject": "...", "body": "..."}, ...]}`;
-  }
-
-  private buildSequencePrompt(input: EmailGenerationInput): string {
-    const userInstruction = input.customPrompt?.trim()
-      ? `\nUser Instructions (apply these on top of the above):\n${input.customPrompt.trim()}\n`
-      : '';
-
-    return `Create a 4-email cold outreach sequence for:
-
-Sender: ${input.senderName} from ${input.senderCompany} (${input.senderRole})
-Target: ${input.targetRole} in ${input.targetIndustry} industry
-Pain Points: ${input.painPoints?.join(', ') || 'Various challenges'}
-Value Prop: ${input.valueProposition}
-${userInstruction}
-Sequence:
-- Day 1: Initial value-driven outreach
-- Day 3: Additional value/social proof
-- Day 7: Different angle, raise urgency
-- Day 14: Final attempt with new angle
-
-Return a JSON object in this exact format:
-{"sequence": [{"day": 1, "subject": "...", "body": "..."}, ...]}`;
-  }
-
   private sanitizeJson(raw: string): string {
-    // Escape unescaped control characters inside JSON string values
     return raw.replace(
       /"((?:[^"\\]|\\.)*)"/gs,
       (_match, inner) => {
