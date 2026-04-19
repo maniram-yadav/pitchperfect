@@ -10,13 +10,16 @@ import { useUserProfile } from '../../hooks/useUserProfile';
 import { INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS, EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS } from '../../utils/constants';
 import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
 import GenerationHistory from './GenerationHistory';
+import TemplateManager from './TemplateManager';
+import { useTemplateStore } from '../../lib/templateStore';
 
 export default function EmailGenerationForm() {
   const [inputMode, setInputMode] = useState<'structured' | 'custom'>('structured');
   const { user } = useAuth();
   const { profile } = useUserProfile();
+  const { lastUsedTemplateId, getTemplate } = useTemplateStore();
 
-  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<EmailGenerationInput>({
+  const { register, handleSubmit, watch, getValues, formState: { errors }, reset } = useForm<EmailGenerationInput>({
     defaultValues: {
       senderName: user?.name || '',
       senderRole: '',
@@ -40,9 +43,18 @@ export default function EmailGenerationForm() {
     },
   });
 
-  // Pre-populate sender fields from profile once loaded
+  // Auto-load last used template on mount (before profile fills in)
   useEffect(() => {
-    if (profile) {
+    if (lastUsedTemplateId) {
+      const template = getTemplate(lastUsedTemplateId);
+      if (template) reset(template.values as any);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pre-populate sender fields from profile once loaded (skipped if template was loaded)
+  useEffect(() => {
+    if (profile && !lastUsedTemplateId) {
       reset((prev) => ({
         ...prev,
         senderName: user?.name || prev.senderName || '',
@@ -54,7 +66,7 @@ export default function EmailGenerationForm() {
         usp: profile.usp || '',
       }));
     }
-  }, [profile, user, reset]);
+  }, [profile, user, reset, lastUsedTemplateId]);
   const { generateEmails, loading, error, generatedEmails } = useEmailGeneration();
   const { generations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -104,6 +116,11 @@ export default function EmailGenerationForm() {
       <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-6">Generate Cold Emails</h1>
+
+          <TemplateManager
+            onSave={() => getValues()}
+            onLoad={(values) => reset(values as any)}
+          />
 
           {/* Input Mode Toggle */}
           <div className="flex gap-4 mb-8">

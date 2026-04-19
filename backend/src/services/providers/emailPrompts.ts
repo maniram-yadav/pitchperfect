@@ -16,7 +16,7 @@ import { EmailGenerationInput } from '../../types/index';
         - Target Industry, Role, Pain Points
         - Value Proposition, USP, Product Description
         - Desired Tone (professional, casual, persuasive, friendly)
-        - Email Length (short: <50 words, medium: 10-150 words, long: 100-250 words)
+        - Email Length (short: <50 words, medium: 100-150 words, long: 100-250 words)
         ## REQUIREMENTS
         - Generate the exact number of variations requested
         - Each email must be unique and compelling
@@ -40,7 +40,7 @@ export const SYSTEM_PROMPT_SEQUENCE =
         - Target Industry, Role, Pain Points
         - Value Proposition, USP, Product Description
         - Desired Tone (professional, casual, persuasive, friendly)
-        - Email Length (short: <100 words, medium: 100-200 words, long: 200-350 words)
+        - Email Length (short: <50 words, medium: 100-200 words, long: 200-350 words)
         ## REQUIREMENTS
         - Generate the exact number of variations requested
         - Each email must be unique and compelling
@@ -52,7 +52,7 @@ export const SYSTEM_PROMPT_SEQUENCE =
         genearte email should match the word count specified in the length parameter provided in the input parameters.
         also prioritize the content of the email to be relevant to the pain points and value proposition provided in the input parameters.
         Subjects should be under 60 characters. Bodies should be concise (50-100 words).
-        strictly follow the email body length guidelines based on the length parameter (short: <100 words, medium: 100-200 words, long: 200-350 words).
+        strictly follow the email body length guidelines based on the length parameter (short: <70 words, medium: 100-200 words, long: 200-350 words).
   Create compelling email sequences. Always respond with valid JSON.`;
 
 export function buildEmailPrompt(input: EmailGenerationInput): string {
@@ -78,11 +78,15 @@ Value Proposition:
 - Product Description: ${input.productDescription}
 
 Email Tone: ${input.tone || 'professional'}
+Email Length: ${input.length || 'medium'}
+Email Type: ${input.emailType || 'cold_outreach'}
+CTA Type: ${input.ctaType || 'reply'}
+
 ${userInstruction}
 Requirements:
 - Each email must be unique and compelling
 - Subjects under 60 characters
-- Body concise (100-300 words)
+- Body concise (50-300 words) depending on 
 - Clear call-to-action based on ctaType (${input.ctaType})
 
 Return a JSON object in this exact format:
