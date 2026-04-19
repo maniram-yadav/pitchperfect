@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { EmailGenerationInput } from '../../types/index';
 import { useEmailGeneration } from '../../hooks/useEmailGeneration';
+import { useEmailStore } from '../../lib/emailStore';
 import { INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS, EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS } from '../../utils/constants';
+import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
+import GenerationHistory from './GenerationHistory';
 
 export default function EmailGenerationForm() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<EmailGenerationInput>({
@@ -13,8 +16,10 @@ export default function EmailGenerationForm() {
       generateSequence: false,
     },
   });
-  const { generateEmails, loading, error } = useEmailGeneration();
+  const { generateEmails, loading, error, generatedEmails } = useEmailGeneration();
+  const { generations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [emailType, setEmailType] = useState<string>('cold_outreach');
 
   const onSubmit = async (data: any) => {
     setSuccessMessage(null);
@@ -30,6 +35,7 @@ export default function EmailGenerationForm() {
         painPoints: painPointsArray,
       };
 
+      setEmailType(processedData.emailType);
       await generateEmails(processedData);
       setSuccessMessage('Emails generated successfully!');
     } catch (err) {
@@ -40,8 +46,9 @@ export default function EmailGenerationForm() {
   const painPointsValue = watch('painPoints');
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
-      <h1 className="text-3xl font-bold mb-8">Generate Cold Emails</h1>
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 className="text-3xl font-bold mb-8">Generate Cold Emails</h1>
 
       {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
       {successMessage && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{successMessage}</div>}
@@ -291,5 +298,19 @@ export default function EmailGenerationForm() {
         {loading ? 'Generating...' : 'Generate Emails'}
       </button>
     </form>
+
+    <div className="max-w-4xl mx-auto py-8">
+      {/* Display Generated Emails */}
+      {generatedEmails && generatedEmails.emails.length > 0 && (
+        <GeneratedEmailsDisplay 
+          emails={generatedEmails.emails}
+          emailType={emailType}
+        />
+      )}
+
+      {/* Display Generation History */}
+      <GenerationHistory generations={generations} />
+    </div>
+    </>
   );
 }

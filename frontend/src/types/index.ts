@@ -48,14 +48,21 @@ export interface Email {
   variation: number;
 }
 
+export interface SequenceEmail {
+  day: number;
+  subject: string;
+  body: string;
+}
+
 export interface GeneratedEmailResponse {
   success: boolean;
   message: string;
   data?: {
     generationId: string;
     emails: Email[];
-    sequence?: any[];
+    sequence?: SequenceEmail[];
     tokensUsed: number;
+    provider: string;
   };
   error?: string;
 }
@@ -66,7 +73,7 @@ export interface Generation {
   inputParams: EmailGenerationInput;
   generatedOutput: {
     emails: Email[];
-    sequence?: any[];
+    sequence?: SequenceEmail[];
   };
   tokensUsed: number;
   createdAt: string;

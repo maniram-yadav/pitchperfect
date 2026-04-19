@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { emailAPI } from '../lib/api';
-import { EmailGenerationInput } from '../types/index';
+import { EmailGenerationInput, Email, SequenceEmail } from '../types/index';
 import { useEmailStore } from '../lib/emailStore';
+
+export interface GeneratedEmailsResponse {
+  emails: Email[];
+  sequence?: SequenceEmail[];
+  tokensUsed: number;
+  provider: string;
+}
 
 export const useEmailGeneration = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmailsResponse | null>(null);
   const { addGeneration } = useEmailStore();
 
-  const generateEmails = async (input: EmailGenerationInput) => {
+  const generateEmails = async (input: EmailGenerationInput): Promise<GeneratedEmailsResponse> => {
     setLoading(true);
     setError(null);
+    setGeneratedEmails(null);
 
     try {
       const result = await emailAPI.generateEmails(input);
@@ -18,6 +27,15 @@ export const useEmailGeneration = () => {
       if (!result.success) {
         throw new Error(result.message || 'Failed to generate emails');
       }
+
+      const generatedData: GeneratedEmailsResponse = {
+        emails: result.data.emails,
+        sequence: result.data.sequence,
+        tokensUsed: result.data.tokensUsed,
+        provider: result.data.provider || 'openai',
+      };
+
+      setGeneratedEmails(generatedData);
 
       addGeneration({
         _id: result.data.generationId,
@@ -31,7 +49,7 @@ export const useEmailGeneration = () => {
         createdAt: new Date().toISOString(),
       });
 
-      return result.data;
+      return generatedData;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
@@ -45,5 +63,6 @@ export const useEmailGeneration = () => {
     generateEmails,
     loading,
     error,
+    generatedEmails,
   };
 };
