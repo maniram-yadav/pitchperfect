@@ -1,0 +1,96 @@
+'use client';
+
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { authAPI } from '../../lib/api';
+import { useAuthStore } from '../../lib/authStore';
+import { useRouter } from 'next/navigation';
+
+interface LoginFormData {
+  email: string;
+  password: string;
+}
+
+export default function LoginForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
+  const [isLoading, setIsLoading] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
+  const { setUser, setToken } = useAuthStore();
+  const router = useRouter();
+
+  const onSubmit = async (data: LoginFormData) => {
+    setIsLoading(true);
+    setApiError(null);
+
+    try {
+      const result = await authAPI.login(data.email, data.password);
+
+      if (!result.success) {
+        setApiError(result.error || result.message);
+        return;
+      }
+
+      // Save auth data
+      setUser({
+        userId: result.data!.userId,
+        email: result.data!.email,
+        name: result.data!.name,
+        tokens: result.data!.tokens,
+        plan: result.data!.plan as any,
+      });
+      setToken(result.data!.token);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : 'Login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
+      <h1 className="text-2xl font-bold mb-6">Login to PitchPerfect</h1>
+
+      {apiError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{apiError}</div>}
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium mb-1">Email</label>
+        <input
+          {...register('email', { required: 'Email is required' })}
+          type="email"
+          className="w-full border rounded px-3 py-2"
+          placeholder="your@email.com"
+        />
+        {errors.email && <span className="text-red-600 text-sm">{errors.email.message}</span>}
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium mb-1">Password</label>
+        <input
+          {...register('password', { required: 'Password is required' })}
+          type="password"
+          className="w-full border rounded px-3 py-2"
+          placeholder="••••••••"
+        />
+        {errors.password && <span className="text-red-600 text-sm">{errors.password.message}</span>}
+      </div>
+
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="w-full bg-secondary text-white py-2 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+      >
+        {isLoading ? 'Logging in...' : 'Login'}
+      </button>
+
+      <p className="text-center mt-4 text-sm">
+        Don't have an account?{' '}
+        <a href="/signup" className="text-secondary hover:underline">
+          Sign up
+        </a>
+      </p>
+    </form>
+  );
+}
