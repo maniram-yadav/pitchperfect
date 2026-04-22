@@ -15,18 +15,28 @@ export default function LoginForm() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const { setUser, setToken } = useAuthStore();
   const router = useRouter();
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setApiError(null);
+    setEmailNotVerified(false);
 
     try {
       const result = await authAPI.login(data.email, data.password);
 
       if (!result.success) {
-        setApiError(result.error || result.message);
+        if (result.error === 'EMAIL_NOT_VERIFIED') {
+          setEmailNotVerified(true);
+          setUnverifiedEmail(data.email);
+          setResendStatus('idle');
+        } else {
+          setApiError(result.error || result.message);
+        }
         return;
       }
 
@@ -42,10 +52,21 @@ export default function LoginForm() {
 
       // Redirect to dashboard
       router.push('/dashboard');
-    } catch (error) {
-      setApiError(error instanceof Error ? error.message : 'Login failed');
+    } catch (error: any) {
+      const backendMessage = error?.response?.data?.message || error?.response?.data?.error;
+      setApiError(backendMessage || (error instanceof Error ? error.message : 'Login failed'));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendStatus('sending');
+    try {
+      await authAPI.resendVerification(unverifiedEmail);
+      setResendStatus('sent');
+    } catch {
+      setResendStatus('error');
     }
   };
 
@@ -54,6 +75,12 @@ export default function LoginForm() {
       <h1 className="text-2xl font-bold mb-6">Login to PitchPerfect</h1>
 
       {apiError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{apiError}</div>}
+      {emailNotVerified && (
+        <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded mb-4 text-sm">
+          <p className="font-medium">Email have not verified. Visit your mail box and click on the verification link received in email.</p>
+          <p>Please check your inbox and click the verification link we sent you before logging in.</p>
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Email</label>

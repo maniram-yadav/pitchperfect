@@ -3,8 +3,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { authAPI } from '../../lib/api';
-import { useAuthStore } from '../../lib/authStore';
-import { useRouter } from 'next/navigation';
 
 interface SignupFormData {
   name: string;
@@ -17,13 +15,13 @@ export default function SignupForm() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<SignupFormData>();
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const { setUser, setToken } = useAuthStore();
-  const router = useRouter();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const password = watch('password');
 
   const onSubmit = async (data: SignupFormData) => {
     setIsLoading(true);
     setApiError(null);
+    setSuccessMessage(null);
 
     try {
       const result = await authAPI.signup(data.name, data.email, data.password, data.confirmPassword);
@@ -33,24 +31,30 @@ export default function SignupForm() {
         return;
       }
 
-      // Save auth data
-      setUser({
-        userId: result.data!.userId,
-        email: result.data!.email,
-        name: result.data!.name,
-        tokens: result.data!.tokens,
-        plan: result.data!.plan as any,
-      });
-      setToken(result.data!.token);
-
-      // Redirect to dashboard
-      router.push('/dashboard');
-    } catch (error) {
-      setApiError(error instanceof Error ? error.message : 'Signup failed');
+      setSuccessMessage(result.message || 'Account created! Please check your email and click the verification link.');
+    } catch (error: any) {
+      const backendMessage = error?.response?.data?.message || error?.response?.data?.error;
+      setApiError(backendMessage || (error instanceof Error ? error.message : 'Signup failed'));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (successMessage) {
+    return (
+      <div className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg text-center">
+        <div className="text-5xl mb-4">📧</div>
+        <h1 className="text-2xl font-bold mb-2 text-green-700">Check your inbox!</h1>
+        <p className="text-gray-600 mb-6">{successMessage}</p>
+        <a
+          href="/login"
+          className="inline-block w-full bg-secondary text-white py-2 rounded font-medium hover:bg-blue-600 text-center"
+        >
+          Go to Login
+        </a>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">

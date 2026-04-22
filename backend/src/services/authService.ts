@@ -7,6 +7,7 @@ import { generateToken, generateRefreshToken } from '../middleware/auth';
 import { ApiResponse } from '../types/index';
 import { logger } from '../utils/logger';
 import { notificationService } from './notificationService';
+import { config } from '../config/env';
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -23,26 +24,20 @@ export const authService = {
       }
 
       const passwordHash = await hashPassword(password);
-      const newUser = new UserModel({ name, email, passwordHash, tokens: 10, plan: 'free' });
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+      const newUser = new UserModel({ name, email, passwordHash, tokens: 10, plan: 'free', emailVerified: false, emailVerificationToken });
       await newUser.save();
       logger.info('Signup — user created', { userId: newUser._id.toString(), email });
 
-      await notificationService.sendWelcomeEmail(newUser.name, newUser.email);
-
-      const token = generateToken(newUser._id.toString(), newUser.email);
-      const refreshToken = generateRefreshToken(newUser._id.toString(), newUser.email);
+      const verificationLink = `${config.frontendUrl}/verify-email?token=${emailVerificationToken}`;
+      await notificationService.sendVerificationEmail(newUser.name, newUser.email, verificationLink);
 
       return {
         success: true,
-        message: 'User registered successfully',
+        message: 'Account created! Please check your email and click the verification link to activate your account.',
         data: {
-          userId: newUser._id.toString(),
           email: newUser.email,
           name: newUser.name,
-          tokens: newUser.tokens,
-          plan: newUser.plan,
-          token,
-          refreshToken,
         },
       };
     } catch (error) {
@@ -68,6 +63,11 @@ export const authService = {
         return { success: false, message: 'Invalid credentials', error: 'Incorrect password' };
       }
 
+      if (!user.emailVerified) {
+        logger.warn('Login — email not verified', { email });
+        return { success: false, message: 'Email not verified. Please check your inbox and click the verification link we sent you before logging in.', error: 'EMAIL_NOT_VERIFIED' };
+      }
+
       logger.info('Login — success', { userId: user._id.toString(), email });
       const token = generateToken(user._id.toString(), user.email);
       const refreshToken = generateRefreshToken(user._id.toString(), user.email);
@@ -88,6 +88,62 @@ export const authService = {
     } catch (error) {
       logger.error('authService.login error', { email, error });
       return { success: false, message: 'Login failed', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async resendVerification(email: string): Promise<ApiResponse<null>> {
+    logger.debug('authService.resendVerification', { email });
+    try {
+      const user = await UserModel.findOne({ email: email.toLowerCase() });
+
+      if (!user) {
+        // Silent — don't reveal whether email exists
+        return { success: true, message: 'If that account exists and is unverified, a new link has been sent.' };
+      }
+
+      if (user.emailVerified) {
+        return { success: false, message: 'This email is already verified. You can log in.' };
+      }
+
+      const emailVerificationToken = crypto.randomBytes(32).toString('hex');
+      user.emailVerificationToken = emailVerificationToken;
+      await user.save();
+
+      const verificationLink = `${config.frontendUrl}/verify-email?token=${emailVerificationToken}`;
+      await notificationService.sendVerificationEmail(user.name, user.email, verificationLink);
+
+      logger.info('Verification email resent', { email });
+      return { success: true, message: 'Verification email sent. Please check your inbox.' };
+    } catch (error) {
+      logger.error('authService.resendVerification error', { email, error });
+      return { success: false, message: 'Failed to resend verification email', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async verifyEmail(token: string): Promise<ApiResponse<null>> {
+    logger.debug('authService.verifyEmail', { token: token.slice(0, 8) + '...' });
+    try {
+      const user = await UserModel.findOne({ emailVerificationToken: token });
+
+      if (!user) {
+        return { success: false, message: 'Invalid or expired verification link.' };
+      }
+
+      if (user.emailVerified) {
+        return { success: true, message: 'Email already verified. You can log in.' };
+      }
+
+      user.emailVerified = true;
+      user.emailVerificationToken = undefined;
+      await user.save();
+
+      logger.info('Email verified', { userId: user._id.toString(), email: user.email });
+      await notificationService.sendWelcomeEmail(user.name, user.email);
+
+      return { success: true, message: 'Email verified successfully! You can now log in.' };
+    } catch (error) {
+      logger.error('authService.verifyEmail error', { error });
+      return { success: false, message: 'Verification failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 

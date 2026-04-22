@@ -54,6 +54,16 @@ export const authAPI = {
     });
     return response.data;
   },
+
+  async verifyEmail(token: string): Promise<any> {
+    const response = await apiClient.get(`/api/auth/verify-email?token=${encodeURIComponent(token)}`);
+    return response.data;
+  },
+
+  async resendVerification(email: string): Promise<any> {
+    const response = await apiClient.post('/api/auth/resend-verification', { email });
+    return response.data;
+  },
 };
 
 export const emailAPI = {
