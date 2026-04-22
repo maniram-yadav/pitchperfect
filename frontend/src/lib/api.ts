@@ -39,6 +39,21 @@ export const authAPI = {
     const response = await apiClient.get('/api/auth/profile');
     return response.data;
   },
+
+  async forgotPassword(email: string): Promise<any> {
+    const response = await apiClient.post('/api/auth/forgot-password', { email });
+    return response.data;
+  },
+
+  async resetPassword(email: string, otp: string, newPassword: string, confirmPassword: string): Promise<any> {
+    const response = await apiClient.post('/api/auth/reset-password', {
+      email,
+      otp,
+      newPassword,
+      confirmPassword,
+    });
+    return response.data;
+  },
 };
 
 export const emailAPI = {

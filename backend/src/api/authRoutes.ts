@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { authService } from '../services/authService';
+import { authService, passwordResetService } from '../services/authService';
 import { validateEmail, validatePassword } from '../utils/security';
 import { authLimiter } from '../middleware/rateLimiter';
 import { verifyToken } from '../middleware/auth';
@@ -110,6 +110,59 @@ router.put('/profile', verifyToken, async (req: Request, res: Response): Promise
   } catch (error) {
     logger.error('Update profile error', { userId, error });
     res.status(500).json({ success: false, message: 'Server error', error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', authLimiter, async (req: Request, res: Response): Promise<void> => {
+  logger.info('POST /api/auth/forgot-password', { email: req.body.email });
+  try {
+    const { email } = req.body;
+
+    if (!email || !validateEmail(email)) {
+      res.status(400).json({ success: false, message: 'Valid email is required' });
+      return;
+    }
+
+    const result = await passwordResetService.requestReset(email);
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error('Forgot password error', { error });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/auth/reset-password
+router.post('/reset-password', authLimiter, async (req: Request, res: Response): Promise<void> => {
+  logger.info('POST /api/auth/reset-password', { email: req.body.email });
+  try {
+    const { email, otp, newPassword, confirmPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      res.status(400).json({ success: false, message: 'Email, OTP, and new password are required' });
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      res.status(400).json({ success: false, message: 'Invalid email format' });
+      return;
+    }
+
+    if (!validatePassword(newPassword)) {
+      res.status(400).json({ success: false, message: 'Password must be at least 8 characters with uppercase, lowercase, and number' });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({ success: false, message: 'Passwords do not match' });
+      return;
+    }
+
+    const result = await passwordResetService.resetPassword(email, otp, newPassword);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    logger.error('Reset password error', { error });
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

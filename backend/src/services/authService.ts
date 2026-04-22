@@ -1,8 +1,15 @@
+import crypto from 'crypto';
+import bcryptjs from 'bcryptjs';
 import { UserModel } from '../models/User';
+import { OtpTokenModel } from '../models/OtpToken';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { generateToken, generateRefreshToken } from '../middleware/auth';
 import { ApiResponse } from '../types/index';
 import { logger } from '../utils/logger';
+import { notificationService } from './notificationService';
+
+const OTP_EXPIRY_MINUTES = 10;
+const MAX_OTP_ATTEMPTS = 5;
 
 export const authService = {
   async signup(name: string, email: string, password: string): Promise<ApiResponse<any>> {
@@ -19,6 +26,8 @@ export const authService = {
       const newUser = new UserModel({ name, email, passwordHash, tokens: 10, plan: 'free' });
       await newUser.save();
       logger.info('Signup — user created', { userId: newUser._id.toString(), email });
+
+      await notificationService.sendWelcomeEmail(newUser.name, newUser.email);
 
       const token = generateToken(newUser._id.toString(), newUser.email);
       const refreshToken = generateRefreshToken(newUser._id.toString(), newUser.email);
@@ -131,6 +140,78 @@ export const authService = {
     } catch (error) {
       logger.error('authService.updateProfile error', { userId, error });
       return { success: false, message: 'Failed to update profile', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+};
+
+export const passwordResetService = {
+  async requestReset(email: string): Promise<ApiResponse<null>> {
+    logger.debug('passwordResetService.requestReset', { email });
+    try {
+      const user = await UserModel.findOne({ email: email.toLowerCase() });
+
+      // Always return success to avoid user enumeration
+      if (!user) {
+        logger.warn('Password reset — email not found (silent)', { email });
+        return { success: true, message: 'If that email exists, an OTP has been sent.' };
+      }
+
+      logger.info('Password reset — user found, creating OTP', { email });
+      // Delete any existing OTP for this email
+      await OtpTokenModel.deleteMany({ email: email.toLowerCase() });
+
+      const otp = crypto.randomInt(100000, 999999).toString();
+      const otpHash = await bcryptjs.hash(otp, 10);
+      const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+      await OtpTokenModel.create({ email: email.toLowerCase(), otpHash, expiresAt });
+      logger.info('Password reset OTP created', { email, expiresAt });
+      await notificationService.sendOtpEmail(email, otp);
+      logger.info('Password reset OTP created and sent', { email });
+
+      return { success: true, message: 'If that email exists, an OTP has been sent.' };
+    } catch (error) {
+      logger.error('passwordResetService.requestReset error', { email, error });
+      return { success: false, message: 'Failed to send OTP', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async resetPassword(email: string, otp: string, newPassword: string): Promise<ApiResponse<null>> {
+    logger.debug('passwordResetService.resetPassword', { email });
+    try {
+      const record = await OtpTokenModel.findOne({ email: email.toLowerCase() });
+
+      if (!record) {
+        return { success: false, message: 'OTP not found or expired. Please request a new one.' };
+      }
+
+      if (record.attempts >= MAX_OTP_ATTEMPTS) {
+        await OtpTokenModel.deleteOne({ _id: record._id });
+        return { success: false, message: 'Too many incorrect attempts. Please request a new OTP.' };
+      }
+
+      if (new Date() > record.expiresAt) {
+        await OtpTokenModel.deleteOne({ _id: record._id });
+        return { success: false, message: 'OTP has expired. Please request a new one.' };
+      }
+
+      const isValid = await bcryptjs.compare(otp, record.otpHash);
+
+      if (!isValid) {
+        await OtpTokenModel.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+        const remaining = MAX_OTP_ATTEMPTS - record.attempts - 1;
+        return { success: false, message: `Invalid OTP. ${remaining} attempt(s) remaining.` };
+      }
+
+      const passwordHash = await hashPassword(newPassword);
+      await UserModel.updateOne({ email: email.toLowerCase() }, { passwordHash });
+      await OtpTokenModel.deleteOne({ _id: record._id });
+
+      logger.info('Password reset successful', { email });
+      return { success: true, message: 'Password reset successfully. You can now log in.' };
+    } catch (error) {
+      logger.error('passwordResetService.resetPassword error', { email, error });
+      return { success: false, message: 'Password reset failed', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 };
