@@ -53,8 +53,15 @@ export default function LoginForm() {
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (error: any) {
-      const backendMessage = error?.response?.data?.message || error?.response?.data?.error;
-      setApiError(backendMessage || (error instanceof Error ? error.message : 'Login failed'));
+      const errData = error?.response?.data;
+      if (errData?.error === 'EMAIL_NOT_VERIFIED') {
+        setEmailNotVerified(true);
+        setUnverifiedEmail(data.email);
+        setResendStatus('idle');
+      } else {
+        const backendMessage = errData?.message || errData?.error;
+        setApiError(backendMessage || (error instanceof Error ? error.message : 'Login failed'));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -77,8 +84,23 @@ export default function LoginForm() {
       {apiError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{apiError}</div>}
       {emailNotVerified && (
         <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded mb-4 text-sm">
-          <p className="font-medium">Email have not verified. Visit your mail box and click on the verification link received in email.</p>
+          <p className="font-medium mb-1">Email not verified</p>
           <p>Please check your inbox and click the verification link we sent you before logging in.</p>
+          {resendStatus === 'sent' ? (
+            <p className="mt-2 text-green-700 font-medium">Verification email resent! Check your inbox.</p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendStatus === 'sending'}
+              className="mt-2 text-yellow-900 underline hover:no-underline disabled:opacity-50"
+            >
+              {resendStatus === 'sending' ? 'Sending...' : 'Resend verification email'}
+            </button>
+          )}
+          {resendStatus === 'error' && (
+            <p className="mt-1 text-red-600">Failed to resend. Please try again.</p>
+          )}
         </div>
       )}
 
