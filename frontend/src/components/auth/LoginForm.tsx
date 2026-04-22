@@ -15,18 +15,28 @@ export default function LoginForm() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const { setUser, setToken } = useAuthStore();
   const router = useRouter();
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
     setApiError(null);
+    setEmailNotVerified(false);
 
     try {
       const result = await authAPI.login(data.email, data.password);
 
       if (!result.success) {
-        setApiError(result.error || result.message);
+        if (result.error === 'EMAIL_NOT_VERIFIED') {
+          setEmailNotVerified(true);
+          setUnverifiedEmail(data.email);
+          setResendStatus('idle');
+        } else {
+          setApiError(result.error || result.message);
+        }
         return;
       }
 
@@ -42,10 +52,28 @@ export default function LoginForm() {
 
       // Redirect to dashboard
       router.push('/dashboard');
-    } catch (error) {
-      setApiError(error instanceof Error ? error.message : 'Login failed');
+    } catch (error: any) {
+      const errData = error?.response?.data;
+      if (errData?.error === 'EMAIL_NOT_VERIFIED') {
+        setEmailNotVerified(true);
+        setUnverifiedEmail(data.email);
+        setResendStatus('idle');
+      } else {
+        const backendMessage = errData?.message || errData?.error;
+        setApiError(backendMessage || (error instanceof Error ? error.message : 'Login failed'));
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setResendStatus('sending');
+    try {
+      await authAPI.resendVerification(unverifiedEmail);
+      setResendStatus('sent');
+    } catch {
+      setResendStatus('error');
     }
   };
 
@@ -54,6 +82,27 @@ export default function LoginForm() {
       <h1 className="text-2xl font-bold mb-6">Login to PitchPerfect</h1>
 
       {apiError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{apiError}</div>}
+      {emailNotVerified && (
+        <div className="bg-yellow-50 border border-yellow-300 text-yellow-800 p-4 rounded mb-4 text-sm">
+          <p className="font-medium mb-1">Email not verified</p>
+          <p>Please check your inbox and click the verification link we sent you before logging in.</p>
+          {resendStatus === 'sent' ? (
+            <p className="mt-2 text-green-700 font-medium">Verification email resent! Check your inbox.</p>
+          ) : (
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={resendStatus === 'sending'}
+              className="mt-2 text-yellow-900 underline hover:no-underline disabled:opacity-50"
+            >
+              {resendStatus === 'sending' ? 'Sending...' : 'Resend verification email'}
+            </button>
+          )}
+          {resendStatus === 'error' && (
+            <p className="mt-1 text-red-600">Failed to resend. Please try again.</p>
+          )}
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="block text-sm font-medium mb-1">Email</label>

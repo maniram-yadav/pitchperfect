@@ -113,6 +113,44 @@ router.put('/profile', verifyToken, async (req: Request, res: Response): Promise
   }
 });
 
+// POST /api/auth/resend-verification
+router.post('/resend-verification', authLimiter, async (req: Request, res: Response): Promise<void> => {
+  logger.info('POST /api/auth/resend-verification', { email: req.body.email });
+  try {
+    const { email } = req.body;
+
+    if (!email || !validateEmail(email)) {
+      res.status(400).json({ success: false, message: 'Valid email is required' });
+      return;
+    }
+
+    const result = await authService.resendVerification(email);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    logger.error('Resend verification error', { error });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/auth/verify-email?token=xxx
+router.get('/verify-email', async (req: Request, res: Response): Promise<void> => {
+  logger.info('GET /api/auth/verify-email');
+  try {
+    const { token } = req.query;
+
+    if (!token || typeof token !== 'string') {
+      res.status(400).json({ success: false, message: 'Verification token is required' });
+      return;
+    }
+
+    const result = await authService.verifyEmail(token);
+    res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    logger.error('Verify email error', { error });
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 // POST /api/auth/forgot-password
 router.post('/forgot-password', authLimiter, async (req: Request, res: Response): Promise<void> => {
   logger.info('POST /api/auth/forgot-password', { email: req.body.email });

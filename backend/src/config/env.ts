@@ -59,4 +59,5 @@ export const config = {
     clientSecret: getEnvValue('GMAIL_CLIENT_SECRET', ''),
     refreshToken: getEnvValue('GMAIL_REFRESH_TOKEN', ''),
   },
+  frontendUrl: getEnvValue('FRONTEND_URL', 'http://localhost:3000'),
 };

@@ -6,6 +6,8 @@ interface UserDocument extends Document {
   passwordHash: string;
   tokens: number;
   plan: 'free' | 'starter' | 'pro';
+  emailVerified: boolean;
+  emailVerificationToken?: string;
   profile?: {
     role?: string;
     company?: string;
@@ -43,6 +45,13 @@ const userSchema = new Schema<UserDocument>(
       type: String,
       enum: ['free', 'starter', 'pro'],
       default: 'free',
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
     },
     profile: {
       role: String,

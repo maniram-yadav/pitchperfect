@@ -91,6 +91,43 @@ export const notificationService = {
     }
   },
 
+  async sendVerificationEmail(name: string, email: string, verificationLink: string): Promise<void> {
+    if (!isConfigured()) {
+      logger.warn('Email not configured — skipping verification email', { email, strategy: config.gmail.strategy });
+      return;
+    }
+    logger.info('Preparing to send verification email', { email, strategy: config.gmail.strategy });
+    try {
+      await sendMail(
+        email,
+        'Verify your PitchPerfect email',
+        `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Welcome to PitchPerfect, ${name}!</h2>
+          <p>Please verify your email address to activate your account.</p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${verificationLink}"
+               style="background: #2563eb; color: white; padding: 14px 28px; border-radius: 6px;
+                      text-decoration: none; font-weight: bold; font-size: 16px;">
+              Verify Email Address
+            </a>
+          </div>
+          <p style="color: #666; font-size: 14px;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${verificationLink}" style="color: #2563eb;">${verificationLink}</a>
+          </p>
+          <p style="color: #999; font-size: 12px;">This link expires in 24 hours. If you didn't sign up, you can ignore this email.</p>
+          <p>— The PitchPerfect Team</p>
+        </div>
+        `
+      );
+      logger.info('Verification email sent', { email, strategy: config.gmail.strategy });
+    } catch (error) {
+      logger.error('Failed to send verification email', { email, strategy: config.gmail.strategy, error });
+      throw error;
+    }
+  },
+
   async sendWelcomeEmail(name: string, email: string): Promise<void> {
     if (!isConfigured()) {
       logger.warn('Email not configured — skipping welcome email', { email, strategy: config.gmail.strategy });
