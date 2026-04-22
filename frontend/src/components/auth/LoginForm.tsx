@@ -67,7 +67,12 @@ export default function LoginForm() {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium mb-1">Password</label>
+        <div className="flex justify-between items-center mb-1">
+          <label className="block text-sm font-medium">Password</label>
+          <a href="/forgot-password" className="text-xs text-secondary hover:underline">
+            Forgot password?
+          </a>
+        </div>
         <input
           {...register('password', { required: 'Password is required' })}
           type="password"

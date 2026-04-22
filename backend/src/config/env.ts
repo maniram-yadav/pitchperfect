@@ -49,4 +49,14 @@ export const config = {
     keyId: getEnvValue('RAZORPAY_KEY_ID', ''),
     keySecret: getEnvValue('RAZORPAY_KEY_SECRET', ''),
   },
+  gmail: {
+    strategy: getEnvValue('EMAIL_STRATEGY', 'smtp') as 'smtp' | 'oauth2',
+    user: getEnvValue('GMAIL_USER', ''),
+    // smtp strategy
+    appPassword: getEnvValue('GMAIL_APP_PASSWORD', ''),
+    // oauth2 strategy
+    clientId: getEnvValue('GMAIL_CLIENT_ID', ''),
+    clientSecret: getEnvValue('GMAIL_CLIENT_SECRET', ''),
+    refreshToken: getEnvValue('GMAIL_REFRESH_TOKEN', ''),
+  },
 };
