@@ -2,7 +2,7 @@ FROM node:24-alpine AS builder
 RUN apk upgrade --no-cache
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 COPY . .
 RUN chmod -R 755 node_modules/.bin && npm run build
 
