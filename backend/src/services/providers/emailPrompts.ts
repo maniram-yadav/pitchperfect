@@ -120,7 +120,7 @@ export function buildCustomEmailPrompt(input: EmailGenerationInput): string {
 
 Generate exactly ${input.variations} unique email variation${input.variations > 1 ? 's' : ''}.
 Generate the email as per the input paramater provided.
-Genberated email should of 100 to 400 words in length depending on the user request. 
+Genberated email should of 100 to 500 words in length depending on the user request. 
 Return a JSON object in this exact format:
 {"emails": [{"subject": "...", "body": "..."}, ...]}`;
 }

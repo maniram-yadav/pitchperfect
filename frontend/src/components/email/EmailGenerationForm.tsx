@@ -12,6 +12,7 @@ import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
 import GenerationHistory from './GenerationHistory';
 import TemplateManager from './TemplateManager';
 import { useTemplateStore } from '../../lib/templateStore';
+import { emailAPI } from '../../lib/api';
 
 export default function EmailGenerationForm() {
   const [inputMode, setInputMode] = useState<'structured' | 'custom'>('structured');
@@ -68,8 +69,16 @@ export default function EmailGenerationForm() {
     }
   }, [profile, user, reset, lastUsedTemplateId]);
   const { generateEmails, loading, error, generatedEmails } = useEmailGeneration();
-  const { generations } = useEmailStore();
+  const { generations, setGenerations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    emailAPI.getHistory(20).then((result) => {
+      if (result.success && Array.isArray(result.data)) {
+        setGenerations(result.data);
+      }
+    }).catch(() => {});
+  }, [setGenerations]);
   const [emailType, setEmailType] = useState<string>('cold_outreach');
 
   const onSubmit = async (data: any) => {
