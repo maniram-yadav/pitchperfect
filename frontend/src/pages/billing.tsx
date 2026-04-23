@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 import { paymentAPI } from '../lib/api';
 
 export default function BillingPage() {
-  useRequireAuth();
+  // useRequireAuth();
   const { user } = useAuth();
 
   const handleSelectPlan = async (plan: any) => {
