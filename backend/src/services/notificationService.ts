@@ -128,6 +128,51 @@ export const notificationService = {
     }
   },
 
+  async sendContactFormEmail(name: string, senderEmail: string, subject: string, message: string): Promise<void> {
+    if (!isConfigured()) {
+      logger.warn('Email not configured — skipping contact form email', { senderEmail });
+      return;
+    }
+    const adminEmail = config.contactEmail;
+    logger.info('Sending contact by email to admin', { senderEmail, adminEmail });
+    try {
+      await sendMail(
+        adminEmail,
+        `[PitchPerfect] - ${subject} - ${name}`,
+        `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1F2937;">New Contact Form Submission</h2>
+          <table style="width:100%; border-collapse:collapse; margin-top:16px;">
+            <tr>
+              <td style="padding:8px 12px; background:#f3f4f6; font-weight:bold; width:120px; border-radius:4px 0 0 4px;">Name</td>
+              <td style="padding:8px 12px; background:#f9fafb;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; background:#f3f4f6; font-weight:bold;">Email</td>
+              <td style="padding:8px 12px; background:#f9fafb;"><a href="mailto:${senderEmail}" style="color:#3B82F6;">${senderEmail}</a></td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; background:#f3f4f6; font-weight:bold;">Subject</td>
+              <td style="padding:8px 12px; background:#f9fafb;">${subject}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; background:#f3f4f6; font-weight:bold; vertical-align:top;">Message</td>
+              <td style="padding:8px 12px; background:#f9fafb; white-space:pre-line;">${message}</td>
+            </tr>
+          </table>
+          <p style="color:#6B7280; font-size:12px; margin-top:24px;">
+            This message was sent via the PitchPerfect contact form. Reply directly to this email ${senderEmail} to respond to ${name}.
+          </p>
+        </div>
+        `
+      );
+      logger.info('Contact form email sent', { senderEmail, adminEmail });
+    } catch (error) {
+      logger.error('Failed to send contact form email', { senderEmail, error });
+      throw error;
+    }
+  },
+
   async sendWelcomeEmail(name: string, email: string): Promise<void> {
     if (!isConfigured()) {
       logger.warn('Email not configured — skipping welcome email', { email, strategy: config.gmail.strategy });
