@@ -60,4 +60,5 @@ export const config = {
     refreshToken: getEnvValue('GMAIL_REFRESH_TOKEN', ''),
   },
   frontendUrl: getEnvValue('FRONTEND_URL', ''),
+  contactEmail: getEnvValue('CONTACT_EMAIL', ''),
 };

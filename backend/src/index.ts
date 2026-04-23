@@ -7,6 +7,7 @@ import { apiLimiter } from './middleware/rateLimiter';
 import authRoutes from './api/authRoutes';
 import emailRoutes from './api/emailRoutes';
 import paymentRoutes from './api/paymentRoutes';
+import contactRoutes from './api/contactRoutes';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/email', verifyToken, emailRoutes);
 app.use('/api/payment', verifyToken, paymentRoutes);
+app.use('/api/contact', contactRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

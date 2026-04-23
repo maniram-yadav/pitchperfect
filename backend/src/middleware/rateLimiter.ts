@@ -16,6 +16,14 @@ export const generateEmailLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+export const contactFormLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 submissions per hour per IP
+  message: 'Too many contact form submissions, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 100, // 100 requests per minute

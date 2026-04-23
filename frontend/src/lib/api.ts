@@ -83,6 +83,13 @@ export const emailAPI = {
   },
 };
 
+export const contactAPI = {
+  async submit(data: { name: string; email: string; subject: string; message: string }): Promise<any> {
+    const response = await apiClient.post('/api/contact', data);
+    return response.data;
+  },
+};
+
 export const paymentAPI = {
   async initiatePayment(plan: string, amount: number): Promise<any> {
     const response = await apiClient.post('/api/payment/initiate', {

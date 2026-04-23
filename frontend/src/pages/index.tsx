@@ -409,9 +409,9 @@ export default function HomePage() {
           <RevealSection delay={200} className="text-center mt-12">
             <p className="text-gray-500">
               Still have questions?{' '}
-              <a href="mailto:support@pitchperfect.ai" className="text-indigo-600 font-semibold hover:underline">
+              <Link href="/contact" className="text-indigo-600 font-semibold hover:underline">
                 Contact us
-              </a>
+              </Link>
             </p>
           </RevealSection>
         </div>
