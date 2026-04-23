@@ -487,7 +487,7 @@ export default function EmailGenerationForm() {
         )}
 
         {/* Display Generation History */}
-        <GenerationHistory generations={generations} />
+        {/* <GenerationHistory generations={generations} /> */}
       </div>
     </>
   );
