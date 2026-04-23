@@ -146,7 +146,7 @@ export default function EmailGenerationForm() {
             >
               📋 Structured Form
             </button>
-            <button
+            {/* <button
               type="button"
               onClick={() => setInputMode('custom')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
@@ -156,7 +156,7 @@ export default function EmailGenerationForm() {
               }`}
             >
               ✏️ Custom Prompt
-            </button>
+            </button> */}
           </div>
         </div>
 
