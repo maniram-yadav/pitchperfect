@@ -13,7 +13,7 @@ export const emailGenerationService = {
     logger.info('emailService.generateEmails start', { userId, useCustomInput: input.useCustomInput });
     try {
       const tokenCheckResult = await tokenService.getUserTokens(userId);
-      if (!tokenCheckResult.success || !tokenCheckResult.data) {
+      if (!tokenCheckResult.success || tokenCheckResult.data === undefined || tokenCheckResult.data === null) {
         logger.warn('generateEmails — failed to check token balance', { userId });
         return { success: false, message: 'Failed to check token balance' };
       }
@@ -26,7 +26,7 @@ export const emailGenerationService = {
         logger.warn('generateEmails — insufficient tokens', { userId, balance: tokenCheckResult.data, required: tokensRequired });
         return {
           success: false,
-          message: 'Insufficient tokens',
+          message: 'Insufficient tokens, Recharge your account to generate emails',
           error: `This operation requires ${tokensRequired} tokens but you only have ${tokenCheckResult.data}`,
         };
       }
