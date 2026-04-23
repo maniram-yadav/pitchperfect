@@ -53,8 +53,11 @@ export const useEmailGeneration = () => {
       });
 
       return generatedData;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    } catch (err: any) {
+      const errorMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        (err instanceof Error ? err.message : 'Unknown error');
       setError(errorMessage);
       throw err;
     } finally {

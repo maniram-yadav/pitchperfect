@@ -146,7 +146,7 @@ export default function EmailGenerationForm() {
             >
               📋 Structured Form
             </button>
-            <button
+            {/* <button
               type="button"
               onClick={() => setInputMode('custom')}
               className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
@@ -156,11 +156,16 @@ export default function EmailGenerationForm() {
               }`}
             >
               ✏️ Custom Prompt
-            </button>
+            </button> */}
           </div>
         </div>
 
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4 flex items-start gap-2">
+            <span className="mt-0.5 shrink-0">&#9888;</span>
+            <span>{error}</span>
+          </div>
+        )}
         {successMessage && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{successMessage}</div>}
 
         {inputMode === 'custom' ? (
