@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { emailAPI } from '../lib/api';
 import { EmailGenerationInput, Email, SequenceEmail } from '../types/index';
 import { useEmailStore } from '../lib/emailStore';
+import { useAuthStore } from '../lib/authStore';
 
 export interface GeneratedEmailsResponse {
   emails: Email[];
@@ -15,6 +16,7 @@ export const useEmailGeneration = () => {
   const [error, setError] = useState<string | null>(null);
   const [generatedEmails, setGeneratedEmails] = useState<GeneratedEmailsResponse | null>(null);
   const { addGeneration } = useEmailStore();
+  const { deductTokens } = useAuthStore();
 
   const generateEmails = async (input: EmailGenerationInput): Promise<GeneratedEmailsResponse> => {
     setLoading(true);
@@ -36,6 +38,7 @@ export const useEmailGeneration = () => {
       };
 
       setGeneratedEmails(generatedData);
+      deductTokens(result.data.tokensUsed);
 
       addGeneration({
         _id: result.data.generationId,

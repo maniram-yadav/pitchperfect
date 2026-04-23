@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types/index';
+import { useEmailStore } from './emailStore';
 
 interface AuthStore {
   user: User | null;
@@ -10,6 +11,7 @@ interface AuthStore {
   setToken: (token: string | null) => void;
   logout: () => void;
   loadFromStorage: () => void;
+  deductTokens: (amount: number) => void;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -40,6 +42,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ user: null, token: null, isAuthenticated: false });
     localStorage.removeItem('user');
     localStorage.removeItem('token');
+    useEmailStore.getState().clearStore();
   },
   
   loadFromStorage: () => {
@@ -51,5 +54,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
     } else {
       set({ hasLoaded: true });
     }
+  },
+
+  deductTokens: (amount: number) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updated = { ...state.user, tokens: Math.max(0, state.user.tokens - amount) };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return { user: updated };
+    });
   },
 }));

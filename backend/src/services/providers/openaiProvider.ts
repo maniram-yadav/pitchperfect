@@ -22,6 +22,11 @@ export class OpenAIProvider implements AIProvider {
     this.temperature = temperature;
   }
 
+  private supportsJsonMode(): boolean {
+    const jsonModeModels = ['gpt-4o', 'gpt-4-turbo', 'gpt-4-1106', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-0125'];
+    return jsonModeModels.some(m => this.model.startsWith(m));
+  }
+
   async generateEmails(input: EmailGenerationInput): Promise<Email[]> {
     const prompt = input.useCustomInput && input.customPrompt
       ? buildCustomEmailPrompt(input)
@@ -51,7 +56,7 @@ export class OpenAIProvider implements AIProvider {
           ],
           temperature: this.temperature,
           max_tokens: maxTokens,
-          response_format: { type: 'json_object' },
+          ...(this.supportsJsonMode() && { response_format: { type: 'json_object' } }),
         }),
       });
 
@@ -97,7 +102,7 @@ export class OpenAIProvider implements AIProvider {
           ],
           temperature: this.temperature,
           max_tokens: 4000,
-          response_format: { type: 'json_object' },
+          ...(this.supportsJsonMode() && { response_format: { type: 'json_object' } }),
         }),
       });
 
