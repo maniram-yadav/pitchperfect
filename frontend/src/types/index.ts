@@ -1,3 +1,5 @@
+export type PlanName = 'free' | 'basic test' | 'starter' | 'pro';
+
 export interface UserProfile {
   role?: string;
   company?: string;
@@ -12,7 +14,7 @@ export interface User {
   email: string;
   name: string;
   tokens: number;
-  plan: 'free' | 'starter' | 'pro';
+  plan: PlanName;
   profile?: UserProfile;
 }
 
@@ -92,7 +94,7 @@ export interface Generation {
 }
 
 export interface Plan {
-  name: 'free' | 'starter' | 'pro';
+  name: PlanName;
   tokens: number;
   price: number;
   features: string[];

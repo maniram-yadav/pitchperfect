@@ -1,10 +1,13 @@
+import type { PlanName } from './transaction';
+export type { PlanName, PaidPlanName } from './transaction';
+
 export interface User {
   _id?: string;
   name: string;
   email: string;
   passwordHash: string;
   tokens: number;
-  plan: 'free' | 'starter' | 'pro';
+  plan: PlanName;
   profile?: {
     role?: string;
     company?: string;
@@ -70,7 +73,7 @@ export interface Transaction {
   userId: string;
   amount: number;
   tokensAdded: number;
-  plan: 'free' | 'starter' | 'pro';
+  plan: PlanName;
   paymentId: string;
   status: 'pending' | 'success' | 'failed';
   createdAt?: Date;

@@ -3,7 +3,7 @@ import { ApiResponse } from '../types/index';
 import { pgTransactionRepo } from '../models/PgTransaction';
 import { UserModel } from '../models/User';
 import { PLAN_TOKENS } from '../utils/constants';
-import { TransactionStatus, WebhookPayload } from '../types/transaction';
+import { TransactionStatus, WebhookPayload, PaidPlanName } from '../types/transaction';
 import { verifyPayuResponseHash, txnidToUuid } from '../utils/payuHash';
 import { config } from '../config/env';
 
@@ -12,7 +12,7 @@ const TERMINAL_STATUSES: TransactionStatus[] = ['success', 'refunded', 'cancelle
 export const paymentService = {
   async initiatePayment(
     userId: string,
-    plan: 'starter' | 'pro',
+    plan: PaidPlanName,
     amount: number,
     idempotencyKey?: string
   ): Promise<ApiResponse<any>> {

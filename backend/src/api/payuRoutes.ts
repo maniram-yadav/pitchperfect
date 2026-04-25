@@ -5,7 +5,7 @@ import { paymentService } from '../services/paymentService';
 import { UserModel } from '../models/User';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
-import { PLAN_TOKENS } from '../utils/constants';
+import { PLAN_TOKENS, PAID_PLAN_NAMES } from '../utils/constants';
 
 const router = Router();
 
@@ -50,8 +50,8 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
       return;
     }
 
-    if (!['starter', 'pro'].includes(plan)) {
-      res.status(400).json({ success: false, message: 'Invalid plan. Must be starter or pro' });
+    if (!(PAID_PLAN_NAMES as readonly string[]).includes(plan)) {
+      res.status(400).json({ success: false, message: `Invalid plan. Must be one of: ${PAID_PLAN_NAMES.join(', ')}` });
       return;
     }
 
@@ -86,7 +86,8 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
     // First name only (PayU's field is firstname, not full name)
     const firstname = user.name.split(' ')[0];
 
-    const productinfo = `PitchPerfect ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan - ${PLAN_TOKENS[plan as 'starter' | 'pro']} Tokens`;
+    const planKey = plan as keyof typeof PLAN_TOKENS;
+    const productinfo = `PitchPerfect ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan - ${PLAN_TOKENS[planKey]} Tokens`;
 
     // surl / furl: backend endpoints that verify hash then redirect to frontend
     const surl = `${config.backendUrl}/api/payu/callback/success`;

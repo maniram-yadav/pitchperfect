@@ -1,10 +1,12 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import type { PlanName } from '../types/transaction';
+import { PLAN_NAMES } from '../utils/constants';
 
 interface TransactionDocument extends Document {
   userId: string;
   amount: number;
   tokensAdded: number;
-  plan: 'free' | 'starter' | 'pro';
+  plan: PlanName;
   paymentId: string;
   status: 'pending' | 'success' | 'failed';
   createdAt?: Date;
@@ -27,7 +29,7 @@ const transactionSchema = new Schema<TransactionDocument>(
     },
     plan: {
       type: String,
-      enum: ['free', 'starter', 'pro'],
+      enum: [...PLAN_NAMES],
       required: true,
     },
     paymentId: {

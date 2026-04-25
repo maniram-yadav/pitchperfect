@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { paymentService } from '../services/paymentService';
 import { tokenService } from '../services/authService';
 import { logger } from '../utils/logger';
+import { PAID_PLAN_NAMES } from '../utils/constants';
 
 const router = Router();
 
@@ -25,8 +26,8 @@ router.post('/initiate', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    if (!['starter', 'pro'].includes(plan)) {
-      res.status(400).json({ success: false, message: 'Invalid plan. Must be starter or pro' });
+    if (!(PAID_PLAN_NAMES as readonly string[]).includes(plan)) {
+      res.status(400).json({ success: false, message: `Invalid plan. Must be one of: ${PAID_PLAN_NAMES.join(', ')}` });
       return;
     }
 

@@ -1,3 +1,6 @@
+export type PlanName = 'free' | 'basic test' | 'starter' | 'pro';
+export type PaidPlanName = 'basic test' | 'starter' | 'pro';
+
 export type TransactionStatus =
   | 'pending'
   | 'processing'
@@ -17,7 +20,7 @@ export interface PgTransaction {
   id: string;
   idempotency_key: string;
   user_id: string;
-  plan: 'starter' | 'pro';
+  plan: PaidPlanName;
   amount: number;
   currency: string;
   tokens_added: number;
@@ -35,7 +38,7 @@ export interface PgTransaction {
 export interface CreateTransactionInput {
   idempotency_key: string;
   user_id: string;
-  plan: 'starter' | 'pro';
+  plan: PaidPlanName;
   amount: number;
   currency?: string;
   tokens_added: number;

@@ -1,11 +1,16 @@
+export const PLAN_NAMES = ['free', 'basic test', 'starter', 'pro'] as const;
+export const PAID_PLAN_NAMES = ['basic test', 'starter', 'pro'] as const;
+
 export const PLAN_TOKENS = {
   free: 10,
+  'basic test': 10,
   starter: 100,
   pro: 500,
 };
 
 export const PLAN_PRICES = {
   free: 0,
+  'basic test': 10, // INR
   starter: 199, // INR
   pro: 499, // INR
 };

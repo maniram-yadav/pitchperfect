@@ -63,6 +63,12 @@ export const PLAN_DATA: import('../types/index').Plan[] = [
     features: ['10 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
   },
   {
+    name: 'basic test',
+    tokens: 10,
+    price: 10,
+    features: ['10 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
+  },
+  {
     name: 'starter',
     tokens: 100,
     price: 199,

@@ -13,6 +13,7 @@ FROM node:24-alpine
 
 RUN apk upgrade --no-cache
 
+# Non-root user — Cloud Run best practice
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
 
 WORKDIR /app
