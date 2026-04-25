@@ -91,19 +91,8 @@ export const contactAPI = {
 };
 
 export const paymentAPI = {
-  async initiatePayment(plan: string, amount: number): Promise<any> {
-    const response = await apiClient.post('/api/payment/initiate', {
-      plan,
-      amount,
-    });
-    return response.data;
-  },
-
-  async confirmPayment(paymentId: string, transactionId: string): Promise<any> {
-    const response = await apiClient.post('/api/payment/success', {
-      paymentId,
-      transactionId,
-    });
+  async initiatePayment(plan: string, amount: number, idempotencyKey?: string): Promise<any> {
+    const response = await apiClient.post('/api/payment/initiate', { plan, amount, idempotencyKey });
     return response.data;
   },
 
@@ -112,8 +101,35 @@ export const paymentAPI = {
     return response.data;
   },
 
+  async getTransaction(transactionId: string): Promise<any> {
+    const response = await apiClient.get(`/api/payment/${transactionId}`);
+    return response.data;
+  },
+
   async getTokenBalance(): Promise<any> {
-    const response = await apiClient.get('/api/tokens/balance');
+    const response = await apiClient.get('/api/payment/tokens/balance');
+    return response.data;
+  },
+};
+
+export const payuAPI = {
+  /**
+   * Creates a PayU transaction server-side (with idempotency).
+   * Returns { payuUrl, transactionId, formFields } — the frontend
+   * must POST formFields to payuUrl via a hidden HTML form.
+   */
+  async initiatePayment(
+    plan: string,
+    amount: number,
+    phone: string,
+    idempotencyKey?: string
+  ): Promise<any> {
+    const response = await apiClient.post('/api/payu/initiate', {
+      plan,
+      amount,
+      phone,
+      idempotencyKey,
+    });
     return response.data;
   },
 };

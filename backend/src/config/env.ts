@@ -45,10 +45,30 @@ export const config = {
     model: getEnvValue('OPENAI_MODEL', 'gpt-4'),
     temperature: parseFloat(getEnvValue('OPENAI_TEMPERATURE', '0.7')),
   },
+  postgres: {
+    // Google Cloud SQL: set CLOUD_SQL_SOCKET_PATH=/cloudsql/project:region:instance
+    // Direct TCP: set POSTGRES_HOST, POSTGRES_PORT, POSTGRES_SSL
+    socketPath: getEnvValue('CLOUD_SQL_SOCKET_PATH', ''),
+    host: getEnvValue('POSTGRES_HOST', 'localhost'),
+    port: parseInt(getEnvValue('POSTGRES_PORT', '5432'), 10),
+    user: getEnvValue('POSTGRES_USER', 'postgres'),
+    password: getEnvValue('POSTGRES_PASSWORD', ''),
+    database: getEnvValue('POSTGRES_DATABASE', 'pitchperfect'),
+    ssl: getEnvValue('POSTGRES_SSL', 'false') === 'true',
+    poolSize: parseInt(getEnvValue('POSTGRES_POOL_SIZE', '10'), 10),
+  },
   razorpay: {
     keyId: getEnvValue('RAZORPAY_KEY_ID', ''),
     keySecret: getEnvValue('RAZORPAY_KEY_SECRET', ''),
   },
+  payu: {
+    merchantKey: getEnvValue('PAYU_MERCHANT_KEY', ''),
+    merchantSalt: getEnvValue('PAYU_MERCHANT_SALT', ''),
+    // true → https://test.payu.in/_payment  |  false → https://secure.payu.in/_payment
+    testMode: getEnvValue('PAYU_TEST_MODE', 'true') === 'true',
+  },
+  backendUrl: getEnvValue('BACKEND_URL', 'http://localhost:5000'),
+  webhookSecret: getEnvValue('WEBHOOK_SECRET', ''),
   gmail: {
     strategy: getEnvValue('EMAIL_STRATEGY', 'smtp') as 'smtp' | 'oauth2',
     user: getEnvValue('GMAIL_USER', ''),
