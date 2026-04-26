@@ -55,6 +55,19 @@ export const CTA_TYPE_OPTIONS = [
   'other',
 ] as const;
 
+export const JOB_SEEKER_PROFILES = [
+  { value: 'fresher', label: 'Fresher / Recent Graduate', description: 'Entry-level, little or no professional experience' },
+  { value: 'software_engineer', label: 'Software Engineer', description: 'Experienced developer / SDE' },
+  { value: 'architect', label: 'Software Architect', description: 'Senior technical leader, system design expert' },
+  { value: 'manager', label: 'Engineering Manager', description: 'Team lead / people manager' },
+  { value: 'professional', label: 'IT Professional', description: 'Other experienced tech professional' },
+] as const;
+
+export const EMAIL_PURPOSE_OPTIONS = [
+  { value: 'business', label: 'Business Outreach', icon: '📈' },
+  { value: 'job_seeking', label: 'Get Hired', icon: '💼' },
+] as const;
+
 export const PLAN_DATA: import('../types/index').Plan[] = [
   {
     name: 'free',

@@ -145,14 +145,9 @@ router.post(
 /**
  * POST /api/webhook/payu/success
  *
- * PayU server-to-server (IPN) webhook for successful payments.
- * Configure this URL in the PayU merchant dashboard under
- * "Developer → Webhook" or "Manage Webhooks".
- *
- * Body is application/x-www-form-urlencoded (PayU IPN format).
- * express.urlencoded is applied in index.ts for /api/webhook/payu/*.
- *
- * Must respond HTTP 200 quickly — PayU retries up to 3 times on failure.
+ * Legacy PayU IPN endpoint for successful payments (old dashboard config).
+ * New integrations should use /payu/notify instead.
+ * Body: application/x-www-form-urlencoded (payment fields at the top level).
  */
 router.post('/payu/success', async (req: Request, res: Response): Promise<void> => {
   const { txnid, mihpayid, status } = req.body;
@@ -171,11 +166,9 @@ router.post('/payu/success', async (req: Request, res: Response): Promise<void> 
 /**
  * POST /api/webhook/payu/failure
  *
- * PayU server-to-server (IPN) webhook for failed payments.
- * Configure alongside /payu/success in the PayU merchant dashboard.
- *
- * Body is application/x-www-form-urlencoded.
- * Must respond HTTP 200 quickly.
+ * Legacy PayU IPN endpoint for failed payments (old dashboard config).
+ * New integrations should use /payu/notify instead.
+ * Body: application/x-www-form-urlencoded.
  */
 router.post('/payu/failure', async (req: Request, res: Response): Promise<void> => {
   const { txnid, error: errorCode, error_Message: errorMessage } = req.body;
@@ -190,4 +183,74 @@ router.post('/payu/failure', async (req: Request, res: Response): Promise<void> 
   res.status(200).send('OK');
 });
 
+
+
+// PayU's documented IP ranges for webhook delivery — used to validate inbound requests
+// in production. Skipped in test/dev mode to avoid blocking local testing.
+const PAYU_WEBHOOK_IPS = new Set([
+  '52.140.8.88', '52.140.8.89', '52.140.8.64', '52.140.8.65',
+  '3.7.89.1', '3.7.89.2', '3.7.89.3', '3.7.89.8', '3.7.89.9', '3.7.89.10',
+  '180.179.174.2', '180.179.165.250',
+  '3.6.73.183', '3.6.83.44',
+]);
+
+/**
+ * POST /api/webhook/payu/notify
+ *
+ * Unified PayU webhook endpoint — configure this single URL in the PayU merchant
+ * dashboard under "Developer → Webhooks". PayU sends all events (payment success,
+ * failure, refund) here as server-to-server POST requests.
+ *
+ * Body: application/x-www-form-urlencoded
+ * Outer fields: event_type, status, request_identifier, timestamp, ...
+ * event_payload: JSON-encoded string containing the full transaction response
+ *                (mihpayid, txnid, amount, hash, udf1-udf10, etc.)
+ *
+ * The hash inside event_payload is verified before updating any transaction.
+ * Always returns HTTP 200 to prevent PayU from retrying (retries up to 3×).
+ */
+router.post('/payu/notify', async (req: Request, res: Response): Promise<void> => {
+  const sourceIp = req.ip ?? 'unknown';
+  const { event_type, request_identifier } = req.body;
+
+  logger.info('PayU webhook notify', { sourceIp, event_type, request_identifier });
+
+  // Optional IP allowlist — enforce only in production to allow local testing
+  if (config.payu.testMode === false && !PAYU_WEBHOOK_IPS.has(sourceIp)) {
+    logger.warn('PayU webhook rejected: IP not in allowlist', { sourceIp });
+    // Still return 200 so PayU doesn't keep retrying; we log the rejection for investigation
+    res.status(200).send('OK');
+    return;
+  }
+
+  // event_payload is a JSON string embedded in the form body
+  const rawPayload = req.body.event_payload;
+  if (!rawPayload) {
+    logger.warn('PayU webhook missing event_payload', { sourceIp, event_type });
+    res.status(200).send('OK');
+    return;
+  }
+
+  let eventPayload: Record<string, string>;
+  try {
+    eventPayload = typeof rawPayload === 'string' ? JSON.parse(rawPayload) : rawPayload;
+  } catch {
+    logger.warn('PayU webhook event_payload is not valid JSON', { sourceIp, event_type });
+    res.status(200).send('OK');
+    return;
+  }
+
+  const { txnid, mihpayid, status } = eventPayload;
+  logger.info('PayU webhook event_payload parsed', { txnid, mihpayid, status, event_type });
+
+  // processPayuResponse verifies the hash, locates the transaction via udf1,
+  // updates its status, and grants tokens on success.
+  const result = await paymentService.processPayuResponse(eventPayload, sourceIp);
+
+  if (!result.success) {
+    logger.warn('PayU webhook processing failed', { txnid, reason: result.message });
+  }
+
+  res.status(200).send('OK');
+});
 export default router;

@@ -20,11 +20,24 @@ export interface User {
   updatedAt?: Date;
 }
 
+export type EmailPurpose = 'business' | 'job_seeking';
+export type JobSeekerProfile = 'fresher' | 'software_engineer' | 'architect' | 'manager' | 'professional';
+
 export interface EmailGenerationInput {
+  // Shared fields
   senderName?: string;
   senderRole?: string;
   senderCompany?: string;
   senderWebsite?: string;
+  tone?: 'professional' | 'casual' | 'persuasive' | 'friendly';
+  length?: 'short' | 'medium' | 'long';
+  variations: number;
+  generateSequence: boolean;
+  customPrompt?: string;
+  useCustomInput?: boolean;
+  emailPurpose?: EmailPurpose;
+
+  // Business outreach fields
   productDescription?: string;
   targetIndustry?: string;
   targetRole?: string;
@@ -33,14 +46,15 @@ export interface EmailGenerationInput {
   painPoints?: string[];
   valueProposition?: string;
   usp?: string;
-  tone?: 'professional' | 'casual' | 'persuasive' | 'friendly';
-  length?: 'short' | 'medium' | 'long';
   emailType?: 'cold_outreach' | 'follow_up' | 'sales_pitch' | 'partnership' | 'job_inquiry';
   ctaType?: 'book_call' | 'reply' | 'demo_request' | 'other';
-  variations: number;
-  generateSequence: boolean;
-  customPrompt?: string;
-  useCustomInput?: boolean;
+
+  // Job-seeking fields
+  jobSeekerProfile?: JobSeekerProfile;
+  yearsOfExperience?: string;
+  skills?: string;
+  targetCompany?: string;
+  jobTitle?: string;
 }
 
 export interface EmailGeneration {
