@@ -104,6 +104,10 @@ router.put('/profile', verifyToken, async (req: Request, res: Response): Promise
       return;
     }
 
+    if ('website' in profile && !profile.website?.trim()) {
+      delete profile.website;
+    }
+
     const result = await authService.updateProfile(userId, profile);
     logger.info('Update profile result', { userId, success: result.success });
     res.status(result.success ? 200 : 400).json(result);

@@ -83,7 +83,7 @@ export default function UserProfileForm() {
       </div>
 
       <div className="mb-6">
-        <label className="block text-sm font-medium mb-2">Company Website</label>
+        <label className="block text-sm font-medium mb-2">Company Website <span className="text-gray-400 font-normal">(Optional)</span></label>
         <input
           {...register('website')}
           type="url"

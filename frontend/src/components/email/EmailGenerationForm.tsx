@@ -185,11 +185,11 @@ export default function EmailGenerationForm() {
           </div>
 
           {/* Input Mode Toggle — kept for future use, currently only structured */}
-          <div className="flex gap-4 mb-8">
+          {/* <div className="flex gap-4 mb-8">
             <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-blue-600 text-white shadow-md text-center">
               Structured Form
             </div>
-          </div>
+          </div> */}
         </div>
 
         {error && (
