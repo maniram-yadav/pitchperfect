@@ -42,6 +42,9 @@ export const getPool = (): Pool => {
 };
 
 export const connectPostgres = async (): Promise<void> => {
+  const pg = config.postgres;
+  const via = pg.socketPath ? `socket:${pg.socketPath}` : `${pg.host}:${pg.port}`;
+  logger.info(`Connecting to PostgreSQL via ${via}`);
   const client = await getPool().connect();
   try {
     await client.query('SELECT 1');
