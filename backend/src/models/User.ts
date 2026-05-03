@@ -1,11 +1,13 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import type { PlanName } from '../types/transaction';
+import { PLAN_NAMES } from '../utils/constants';
 
 interface UserDocument extends Document {
   name: string;
   email: string;
   passwordHash: string;
   tokens: number;
-  plan: 'free' | 'starter' | 'pro';
+  plan: PlanName;
   emailVerified: boolean;
   emailVerificationToken?: string;
   profile?: {
@@ -43,7 +45,7 @@ const userSchema = new Schema<UserDocument>(
     },
     plan: {
       type: String,
-      enum: ['free', 'starter', 'pro'],
+      enum: [...PLAN_NAMES],
       default: 'free',
     },
     emailVerified: {

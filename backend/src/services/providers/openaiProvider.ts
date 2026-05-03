@@ -6,8 +6,10 @@ import {
   buildSequencePrompt,
   buildCustomEmailPrompt,
   buildCustomSequencePrompt,
+  buildJobEmailPrompt,
   SYSTEM_PROMPT_EMAIL,
   SYSTEM_PROMPT_SEQUENCE,
+  SYSTEM_PROMPT_JOB_EMAIL,
 } from './emailPrompts';
 
 export class OpenAIProvider implements AIProvider {
@@ -28,14 +30,24 @@ export class OpenAIProvider implements AIProvider {
   }
 
   async generateEmails(input: EmailGenerationInput): Promise<Email[]> {
-    const prompt = input.useCustomInput && input.customPrompt
-      ? buildCustomEmailPrompt(input)
-      : buildEmailPrompt(input);
+    let prompt: string;
+    let systemPrompt: string;
+
+    if (input.useCustomInput && input.customPrompt) {
+      prompt = buildCustomEmailPrompt(input);
+      systemPrompt = SYSTEM_PROMPT_EMAIL;
+    } else if (input.emailPurpose === 'job_seeking') {
+      prompt = buildJobEmailPrompt(input);
+      systemPrompt = SYSTEM_PROMPT_JOB_EMAIL;
+    } else {
+      prompt = buildEmailPrompt(input);
+      systemPrompt = SYSTEM_PROMPT_EMAIL;
+    }
 
     const variations = Math.min(Math.max(input.variations || 1, 1), 3);
     const maxTokens = variations * 1500;
 
-    logger.debug('OpenAI generateEmails request', { model: this.model, variations, maxTokens });
+    logger.debug('OpenAI generateEmails request', { model: this.model, variations, maxTokens, purpose: input.emailPurpose });
     logger.debug('OpenAI generateEmails input', prompt);
 
     try {
@@ -50,7 +62,7 @@ export class OpenAIProvider implements AIProvider {
           messages: [
             {
               role: 'system',
-              content: SYSTEM_PROMPT_EMAIL,
+              content: systemPrompt,
             },
             { role: 'user', content: prompt },
           ],

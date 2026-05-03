@@ -14,6 +14,9 @@ export default function Footer() {
           <Link href="/terms" className="hover:text-secondary transition-colors">
             Terms
           </Link>
+          <Link href="/refund" className="hover:text-secondary transition-colors">
+            Refund & Cancellation
+          </Link>
           <Link href="/contact" className="hover:text-secondary transition-colors">
             Contact
           </Link>

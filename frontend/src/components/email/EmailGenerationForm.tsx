@@ -2,20 +2,23 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { EmailGenerationInput } from '../../types/index';
+import { EmailGenerationInput, EmailPurpose } from '../../types/index';
 import { useEmailGeneration } from '../../hooks/useEmailGeneration';
 import { useEmailStore } from '../../lib/emailStore';
 import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
-import { INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS, EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS } from '../../utils/constants';
+import {
+  INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS,
+  EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS, JOB_SEEKER_PROFILES, EMAIL_PURPOSE_OPTIONS,
+} from '../../utils/constants';
 import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
-import GenerationHistory from './GenerationHistory';
 import TemplateManager from './TemplateManager';
 import { useTemplateStore } from '../../lib/templateStore';
 import { emailAPI } from '../../lib/api';
 
 export default function EmailGenerationForm() {
-  const [inputMode, setInputMode] = useState<'structured' | 'custom'>('structured');
+  const [inputMode] = useState<'structured' | 'custom'>('structured');
+  const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('business');
   const { user } = useAuth();
   const { profile } = useUserProfile();
   const { lastUsedTemplateId, getTemplate } = useTemplateStore();
@@ -41,10 +44,16 @@ export default function EmailGenerationForm() {
       variations: 1,
       generateSequence: false,
       useCustomInput: false,
+      emailPurpose: 'business',
+      // job-seeking defaults
+      jobSeekerProfile: 'software_engineer',
+      yearsOfExperience: '',
+      skills: '',
+      targetCompany: '',
+      jobTitle: '',
     },
   });
 
-  // Auto-load last used template on mount (before profile fills in)
   useEffect(() => {
     if (lastUsedTemplateId) {
       const template = getTemplate(lastUsedTemplateId);
@@ -53,7 +62,6 @@ export default function EmailGenerationForm() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pre-populate sender fields from profile once loaded (skipped if template was loaded)
   useEffect(() => {
     if (profile && !lastUsedTemplateId) {
       reset((prev) => ({
@@ -68,9 +76,11 @@ export default function EmailGenerationForm() {
       }));
     }
   }, [profile, user, reset, lastUsedTemplateId]);
+
   const { generateEmails, loading, error, generatedEmails } = useEmailGeneration();
-  const { generations, setGenerations } = useEmailStore();
+  const { setGenerations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [emailType, setEmailType] = useState<string>('cold_outreach');
 
   useEffect(() => {
     emailAPI.getHistory(20).then((result) => {
@@ -79,32 +89,38 @@ export default function EmailGenerationForm() {
       }
     }).catch(() => {});
   }, [setGenerations]);
-  const [emailType, setEmailType] = useState<string>('cold_outreach');
 
   const onSubmit = async (data: any) => {
     setSuccessMessage(null);
-
     try {
       let processedData: EmailGenerationInput;
 
       if (inputMode === 'custom') {
-        // For custom input mode, only use essential fields
         processedData = {
           variations: data.variations || 1,
           generateSequence: data.generateSequence || false,
           customPrompt: data.customPrompt,
           useCustomInput: true,
+          emailPurpose,
         };
         setEmailType('custom_prompt');
+      } else if (emailPurpose === 'job_seeking') {
+        processedData = {
+          ...data,
+          emailPurpose: 'job_seeking',
+          useCustomInput: false,
+          customPrompt: data.customPrompt?.trim() || undefined,
+        };
+        setEmailType('job_inquiry');
       } else {
-        // Structured input mode — always use structured fields; customPrompt is extra user instruction
         const painPointsArray = typeof data.painPoints === 'string'
-          ? data.painPoints.split(',').map((point: string) => point.trim()).filter((point: string) => point.length > 0)
+          ? data.painPoints.split(',').map((p: string) => p.trim()).filter((p: string) => p.length > 0)
           : Array.isArray(data.painPoints) ? data.painPoints : [];
 
         processedData = {
           ...data,
           painPoints: painPointsArray,
+          emailPurpose: 'business',
           customPrompt: data.customPrompt?.trim() || undefined,
           useCustomInput: false,
         };
@@ -113,14 +129,14 @@ export default function EmailGenerationForm() {
 
       await generateEmails(processedData);
       setSuccessMessage('Emails generated successfully!');
-    } catch (err) {
-      // Error is handled in the hook
+    } catch (_err) {
+      // Error handled in hook
     }
   };
 
-  const painPointsValue = watch('painPoints');
   const variationsValue = watch('variations') || 1;
   const estimatedTokens = variationsValue;
+  const selectedJobProfile = watch('jobSeekerProfile');
 
   return (
     <>
@@ -133,30 +149,33 @@ export default function EmailGenerationForm() {
             onLoad={(values) => reset(values as any)}
           />
 
-          {/* Input Mode Toggle */}
+          {/* Purpose Toggle */}
+          <div className="mb-6">
+            <p className="text-sm font-medium text-gray-600 mb-2">What are you generating emails for?</p>
+            <div className="flex gap-3">
+              {EMAIL_PURPOSE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEmailPurpose(opt.value as EmailPurpose)}
+                  className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 border-2 ${
+                    emailPurpose === opt.value
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                  }`}
+                >
+                  <span>{opt.icon}</span>
+                  <span>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Input Mode Toggle — kept for future use, currently only structured */}
           <div className="flex gap-4 mb-8">
-            <button
-              type="button"
-              onClick={() => setInputMode('structured')}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                inputMode === 'structured'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              📋 Structured Form
-            </button>
-            {/* <button
-              type="button"
-              onClick={() => setInputMode('custom')}
-              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all ${
-                inputMode === 'custom'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              ✏️ Custom Prompt
-            </button> */}
+            <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-blue-600 text-white shadow-md text-center">
+              Structured Form
+            </div>
           </div>
         </div>
 
@@ -168,29 +187,172 @@ export default function EmailGenerationForm() {
         )}
         {successMessage && <div className="bg-green-100 text-green-700 p-3 rounded mb-4">{successMessage}</div>}
 
-        {inputMode === 'custom' ? (
-          // Custom Input Mode
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">✨ Custom Email Generation Prompt</label>
-              <p className="text-sm text-gray-600 mb-3">
-                Write any instructions or context for generating emails. Be as specific as possible about tone, content, style, and goals.
-              </p>
-              <textarea
-                {...register('customPrompt', { 
-                  required: 'Custom prompt is required',
-                  minLength: { value: 20, message: 'Prompt must be at least 20 characters' }
-                })}
-                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-blue-500 focus:outline-none text-base"
-                placeholder="e.g., Generate professional cold emails for B2B SaaS leads that emphasize cost savings. Include a sense of urgency but remain respectful. Target CTOs of mid-sized tech companies..."
-                rows={6}
-              />
-              {errors.customPrompt && <span className="text-red-600 text-sm block mt-1">{errors.customPrompt.message}</span>}
+        {/* ── JOB-SEEKING FORM ── */}
+        {emailPurpose === 'job_seeking' ? (
+          <>
+            {/* Job Seeker Profile Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-semibold mb-3 text-gray-800">Your Profile Type</label>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                {JOB_SEEKER_PROFILES.map((p) => (
+                  <label
+                    key={p.value}
+                    className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-all ${
+                      selectedJobProfile === p.value
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      value={p.value}
+                      {...register('jobSeekerProfile', { required: 'Select your profile type' })}
+                      className="sr-only"
+                    />
+                    <p className="text-sm font-medium leading-tight">{p.label}</p>
+                    <p className="text-xs text-gray-500 mt-1 leading-tight">{p.description}</p>
+                  </label>
+                ))}
+              </div>
+              {errors.jobSeekerProfile && <span className="text-red-600 text-sm">{errors.jobSeekerProfile.message}</span>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {/* Applicant Info */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="block text-sm font-medium mb-2">Number of Variations</label>
+                <label className="block text-sm font-medium mb-1">Your Full Name</label>
+                <input
+                  {...register('senderName', { required: 'Name is required' })}
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="Priya Sharma"
+                />
+                {errors.senderName && <span className="text-red-600 text-sm">{errors.senderName.message}</span>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {selectedJobProfile === 'fresher' ? 'Degree / Field of Study' : 'Current / Last Role'}
+                </label>
+                <input
+                  {...register('senderRole')}
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder={selectedJobProfile === 'fresher' ? 'B.Tech Computer Science' : 'Senior Software Engineer'}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {selectedJobProfile === 'fresher' ? 'College / University (optional)' : 'Current / Previous Company'}
+                </label>
+                <input
+                  {...register('senderCompany')}
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder={selectedJobProfile === 'fresher' ? 'IIT Delhi' : 'Infosys / TCS / Startup'}
+                />
+              </div>
+
+              {selectedJobProfile !== 'fresher' && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Years of Experience</label>
+                  <input
+                    {...register('yearsOfExperience')}
+                    type="text"
+                    className="w-full border rounded px-3 py-2"
+                    placeholder="e.g. 5 years"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">Key Skills / Technologies</label>
+              <input
+                {...register('skills', { required: 'Please list at least one skill' })}
+                type="text"
+                className="w-full border rounded px-3 py-2"
+                placeholder="e.g. React, Node.js, AWS, Python, System Design"
+              />
+              {errors.skills && <span className="text-red-600 text-sm">{errors.skills.message}</span>}
+            </div>
+
+            {/* Target Info */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">Job Title Applying For</label>
+                <input
+                  {...register('jobTitle', { required: 'Job title is required' })}
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="e.g. Senior Backend Engineer"
+                />
+                {errors.jobTitle && <span className="text-red-600 text-sm">{errors.jobTitle.message}</span>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Target Company (optional)</label>
+                <input
+                  {...register('targetCompany')}
+                  type="text"
+                  className="w-full border rounded px-3 py-2"
+                  placeholder="e.g. Google, Flipkart, any startup"
+                />
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">Target Industry</label>
+              <select
+                {...register('targetIndustry')}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Select industry (optional)</option>
+                {INDUSTRIES.map((ind) => (
+                  <option key={ind} value={ind}>{ind}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Optional user instruction */}
+            <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+              <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+                <span>Additional Instructions (Optional)</span>
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Extra guidance</span>
+              </label>
+              <textarea
+                {...register('customPrompt')}
+                className="w-full border border-blue-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-blue-500"
+                placeholder="e.g. Mention my open-source contributions. Emphasize remote work preference. Reference their recent product launch."
+                rows={3}
+              />
+            </div>
+
+            {/* Email Settings */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div>
+                <label className="block text-sm font-medium mb-1">Tone</label>
+                <select {...register('tone', { required: true })} className="w-full border rounded px-3 py-2">
+                  {TONE_OPTIONS.map((tone) => (
+                    <option key={tone} value={tone}>{tone.charAt(0).toUpperCase() + tone.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Length</label>
+                <select {...register('length', { required: true })} className="w-full border rounded px-3 py-2">
+                  {LENGTH_OPTIONS.map((len) => (
+                    <option key={len} value={len}>{len.charAt(0).toUpperCase() + len.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Variations</label>
                 <input
                   {...register('variations', { required: true, min: 1, max: 3, valueAsNumber: true })}
                   type="number"
@@ -199,20 +361,13 @@ export default function EmailGenerationForm() {
                   className="w-full border rounded px-3 py-2"
                 />
                 <p className="text-xs text-blue-600 mt-1">
-                  This will consume <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''} from your balance ({variationsValue} variation{variationsValue > 1 ? 's' : ''})
+                  Uses <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''}
                 </p>
               </div>
-
-              <div className="flex items-end">
-                <label className="flex items-center cursor-pointer">
-                  <input {...register('generateSequence')} type="checkbox" className="mr-3 w-4 h-4" />
-                  <span className="text-sm font-medium">Generate Email Sequence</span>
-                </label>
-              </div>
             </div>
-          </div>
+          </>
         ) : (
-          // Structured Input Mode
+          /* ── BUSINESS OUTREACH FORM ── */
           <>
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div>
@@ -281,9 +436,7 @@ export default function EmailGenerationForm() {
                 >
                   <option value="">Select industry</option>
                   {INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>
-                      {ind}
-                    </option>
+                    <option key={ind} value={ind}>{ind}</option>
                   ))}
                 </select>
                 {errors.targetIndustry && <span className="text-red-600 text-sm">{errors.targetIndustry.message}</span>}
@@ -297,9 +450,7 @@ export default function EmailGenerationForm() {
                 >
                   <option value="">Select role</option>
                   {TARGET_ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
+                    <option key={role} value={role}>{role}</option>
                   ))}
                 </select>
                 {errors.targetRole && <span className="text-red-600 text-sm">{errors.targetRole.message}</span>}
@@ -315,9 +466,7 @@ export default function EmailGenerationForm() {
                 >
                   <option value="">Select size</option>
                   {COMPANY_SIZES.map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
+                    <option key={size} value={size}>{size}</option>
                   ))}
                 </select>
               </div>
@@ -336,7 +485,7 @@ export default function EmailGenerationForm() {
             <div className="mb-6">
               <label className="block text-sm font-medium mb-2">Pain Points</label>
               <input
-                {...register('painPoints', { 
+                {...register('painPoints', {
                   required: 'At least one pain point is required',
                   validate: (value) => {
                     const raw = value as unknown as string | string[];
@@ -345,7 +494,7 @@ export default function EmailGenerationForm() {
                       return points.length > 0 || 'Enter at least one pain point (separate with commas)';
                     }
                     return Array.isArray(raw) && raw.length > 0 || 'At least one pain point is required';
-                  }
+                  },
                 })}
                 type="text"
                 className="w-full border rounded px-3 py-2"
@@ -376,16 +525,16 @@ export default function EmailGenerationForm() {
 
             <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
               <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                <span>✨ User Instruction (Optional)</span>
+                <span>User Instruction (Optional)</span>
                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Extra guidance</span>
               </label>
               <p className="text-xs text-gray-600 mb-2">
-                Additional instructions applied on top of the structured fields above (e.g. tone nuances, specific angles, things to avoid).
+                Additional instructions applied on top of the structured fields above.
               </p>
               <textarea
                 {...register('customPrompt')}
                 className="w-full border border-blue-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-blue-500"
-                placeholder="e.g., Emphasize ROI and quick implementation. Use data-driven language. Avoid mentioning competitors directly."
+                placeholder="e.g., Emphasize ROI and quick implementation. Use data-driven language."
                 rows={3}
               />
             </div>
@@ -393,82 +542,53 @@ export default function EmailGenerationForm() {
             <div className="grid grid-cols-4 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium mb-1">Tone</label>
-                <select
-                  {...register('tone', { required: true })}
-                  className="w-full border rounded px-3 py-2"
-                >
+                <select {...register('tone', { required: true })} className="w-full border rounded px-3 py-2">
                   {TONE_OPTIONS.map((tone) => (
-                    <option key={tone} value={tone}>
-                      {tone.charAt(0).toUpperCase() + tone.slice(1)}
-                    </option>
+                    <option key={tone} value={tone}>{tone.charAt(0).toUpperCase() + tone.slice(1)}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Length</label>
-                <select
-                  {...register('length', { required: true })}
-                  className="w-full border rounded px-3 py-2"
-                >
+                <select {...register('length', { required: true })} className="w-full border rounded px-3 py-2">
                   {LENGTH_OPTIONS.map((len) => (
-                    <option key={len} value={len}>
-                      {len.charAt(0).toUpperCase() + len.slice(1)}
-                    </option>
+                    <option key={len} value={len}>{len.charAt(0).toUpperCase() + len.slice(1)}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">Email Type</label>
-                <select
-                  {...register('emailType', { required: true })}
-                  className="w-full border rounded px-3 py-2"
-                >
+                <select {...register('emailType', { required: true })} className="w-full border rounded px-3 py-2">
                   {EMAIL_TYPE_OPTIONS.map((type) => (
-                    <option key={type} value={type}>
-                      {type.replace('_', ' ')}
-                    </option>
+                    <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium mb-1">CTA Type</label>
-                <select
-                  {...register('ctaType', { required: true })}
-                  className="w-full border rounded px-3 py-2"
-                >
+                <select {...register('ctaType', { required: true })} className="w-full border rounded px-3 py-2">
                   {CTA_TYPE_OPTIONS.map((cta) => (
-                    <option key={cta} value={cta}>
-                      {cta.replace('_', ' ')}
-                    </option>
+                    <option key={cta} value={cta}>{cta.replace(/_/g, ' ')}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div>
-                <label className="block text-sm font-medium mb-1">Number of Variations</label>
-                <input
-                  {...register('variations', { required: true, min: 1, max: 3, valueAsNumber: true })}
-                  type="number"
-                  min="1"
-                  max="3"
-                  className="w-full border rounded px-3 py-2"
-                />
-                <p className="text-xs text-blue-600 mt-1">
-                  This will consume <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''} from your balance ({variationsValue} variation{variationsValue > 1 ? 's' : ''})
-                </p>
-              </div>
-
-              {/* <div className="flex items-end">
-                <label className="flex items-center">
-                  <input {...register('generateSequence')} type="checkbox" className="mr-2" />
-                  <span>Generate Email Sequence</span>
-                </label>
-              </div> */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">Number of Variations</label>
+              <input
+                {...register('variations', { required: true, min: 1, max: 3, valueAsNumber: true })}
+                type="number"
+                min="1"
+                max="3"
+                className="w-full border rounded px-3 py-2 max-w-xs"
+              />
+              <p className="text-xs text-blue-600 mt-1">
+                This will consume <strong>{estimatedTokens}</strong> token{estimatedTokens > 1 ? 's' : ''} ({variationsValue} variation{variationsValue > 1 ? 's' : ''})
+              </p>
             </div>
           </>
         )}
@@ -478,21 +598,17 @@ export default function EmailGenerationForm() {
           disabled={loading}
           className="w-full bg-secondary text-white py-3 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
         >
-          {loading ? 'Generating...' : 'Generate Emails'}
+          {loading ? 'Generating...' : emailPurpose === 'job_seeking' ? 'Generate Job Application Email' : 'Generate Emails'}
         </button>
       </form>
 
       <div className="max-w-4xl mx-auto py-8">
-        {/* Display Generated Emails */}
         {generatedEmails && generatedEmails.emails.length > 0 && (
-          <GeneratedEmailsDisplay 
+          <GeneratedEmailsDisplay
             emails={generatedEmails.emails}
             emailType={emailType}
           />
         )}
-
-        {/* Display Generation History */}
-        {/* <GenerationHistory generations={generations} /> */}
       </div>
     </>
   );
