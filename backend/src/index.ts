@@ -16,6 +16,9 @@ import { logger } from './utils/logger';
 
 const app = express();
 
+// Trust the first proxy hop (Cloud Run / GCP load balancer sets X-Forwarded-For)
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: [
     'https://picthper.com',
@@ -77,15 +80,22 @@ app.get('/health', (_req, res) => {
 });
 
 const startServer = async () => {
+  // Bind the port first so Cloud Run's startup probe succeeds immediately.
+  // DB connections happen after — if they fail the process exits and Cloud Run restarts.
+  const port = config.port;
+  await new Promise<void>((resolve) => {
+    app.listen(port, () => {
+      logger.info(`Server running on http://localhost:${port}`);
+      resolve();
+    });
+  });
+
   try {
     await connectDB();
     await connectPostgres();
     await initTransactionsTable();
-    app.listen(config.port, () => {
-      logger.info(`Server running on http://localhost:${config.port}`);
-    });
   } catch (error) {
-    logger.error('Failed to start server', { error });
+    logger.error('Failed to connect to databases', { error });
     process.exit(1);
   }
 };
