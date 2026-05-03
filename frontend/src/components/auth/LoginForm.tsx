@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { authAPI } from '../../lib/api';
 import { useAuthStore } from '../../lib/authStore';
@@ -15,6 +15,13 @@ export default function LoginForm() {
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>();
   const [isLoading, setIsLoading] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const message = params.get('message');
+    if (message) setRedirectMessage(message);
+  }, []);
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [unverifiedEmail, setUnverifiedEmail] = useState('');
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -80,6 +87,12 @@ export default function LoginForm() {
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
       <h1 className="text-2xl font-bold mb-6">Login to PitchPerfect</h1>
+
+      {redirectMessage && (
+        <div className="bg-amber-50 border border-amber-300 text-amber-800 p-3 rounded mb-4 text-sm">
+          {redirectMessage}
+        </div>
+      )}
 
       {apiError && <div className="bg-red-100 text-red-700 p-3 rounded mb-4">{apiError}</div>}
       {emailNotVerified && (

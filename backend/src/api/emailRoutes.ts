@@ -28,6 +28,18 @@ router.post(
           res.status(400).json({ success: false, message: 'Custom prompt must be at least 20 characters' });
           return;
         }
+      } else if (input.emailPurpose === 'job_seeking') {
+        const requiredFields = ['senderName', 'jobSeekerProfile', 'skills', 'jobTitle', 'tone', 'length', 'variations'];
+
+        const missingFields = requiredFields.filter(
+          (field) => !(field in input) || (input as any)[field] === '' || (input as any)[field] === undefined
+        );
+
+        if (missingFields.length > 0) {
+          logger.warn('Email generation failed — missing job-seeking fields', { userId, missingFields });
+          res.status(400).json({ success: false, message: `Missing required fields: ${missingFields.join(', ')}` });
+          return;
+        }
       } else {
         const requiredFields = [
           'senderName', 'senderRole', 'senderCompany',
