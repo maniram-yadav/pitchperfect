@@ -51,6 +51,7 @@ export interface EmailGenerationInput {
 
   // Job-seeking fields
   jobSeekerProfile?: JobSeekerProfile;
+  recipientRole?: string;
   yearsOfExperience?: string;
   skills?: string;
   targetCompany?: string;

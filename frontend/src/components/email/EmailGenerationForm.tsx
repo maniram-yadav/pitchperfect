@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import {
   INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS,
-  EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS, JOB_SEEKER_PROFILES, EMAIL_PURPOSE_OPTIONS,
+  EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS, EMAIL_PURPOSE_OPTIONS, JOB_RECIPIENT_ROLES,
 } from '../../utils/constants';
 import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
 import TemplateManager from './TemplateManager';
@@ -21,7 +21,7 @@ export default function EmailGenerationForm() {
   const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('business');
   const { user } = useAuth();
   const { profile } = useUserProfile();
-  const { lastUsedTemplateId, getTemplate } = useTemplateStore();
+  const { lastUsedTemplateId, getTemplate, saveTemplate, setLastUsed } = useTemplateStore();
 
   const { register, handleSubmit, watch, getValues, formState: { errors }, reset } = useForm<EmailGenerationInput>({
     defaultValues: {
@@ -47,6 +47,7 @@ export default function EmailGenerationForm() {
       emailPurpose: 'business',
       // job-seeking defaults
       jobSeekerProfile: 'software_engineer',
+      recipientRole: 'hr_recruiter',
       yearsOfExperience: '',
       skills: '',
       targetCompany: '',
@@ -81,6 +82,19 @@ export default function EmailGenerationForm() {
   const { setGenerations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [emailType, setEmailType] = useState<string>('cold_outreach');
+  const [showBottomSaveInput, setShowBottomSaveInput] = useState(false);
+  const [bottomTemplateName, setBottomTemplateName] = useState('');
+  const [bottomSaveSuccess, setBottomSaveSuccess] = useState(false);
+  const handleBottomSave = () => {
+    const name = bottomTemplateName.trim();
+    if (!name) return;
+    const saved = saveTemplate(name, getValues());
+    setLastUsed(saved.id);
+    setBottomTemplateName('');
+    setShowBottomSaveInput(false);
+    setBottomSaveSuccess(true);
+    setTimeout(() => setBottomSaveSuccess(false), 2000);
+  };
 
   useEffect(() => {
     emailAPI.getHistory(20).then((result) => {
@@ -172,11 +186,11 @@ export default function EmailGenerationForm() {
           </div>
 
           {/* Input Mode Toggle — kept for future use, currently only structured */}
-          <div className="flex gap-4 mb-8">
+          {/* <div className="flex gap-4 mb-8">
             <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-blue-600 text-white shadow-md text-center">
               Structured Form
             </div>
-          </div>
+          </div> */}
         </div>
 
         {error && (
@@ -190,32 +204,8 @@ export default function EmailGenerationForm() {
         {/* ── JOB-SEEKING FORM ── */}
         {emailPurpose === 'job_seeking' ? (
           <>
-            {/* Job Seeker Profile Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold mb-3 text-gray-800">Your Profile Type</label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {JOB_SEEKER_PROFILES.map((p) => (
-                  <label
-                    key={p.value}
-                    className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-all ${
-                      selectedJobProfile === p.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      value={p.value}
-                      {...register('jobSeekerProfile', { required: 'Select your profile type' })}
-                      className="sr-only"
-                    />
-                    <p className="text-sm font-medium leading-tight">{p.label}</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-tight">{p.description}</p>
-                  </label>
-                ))}
-              </div>
-              {errors.jobSeekerProfile && <span className="text-red-600 text-sm">{errors.jobSeekerProfile.message}</span>}
-            </div>
+            {/* Job Seeker Profile Selector — UI hidden; field kept for prompt context via default value */}
+            <input type="hidden" {...register('jobSeekerProfile')} />
 
             {/* Applicant Info */}
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -302,6 +292,20 @@ export default function EmailGenerationForm() {
                   placeholder="e.g. Google, Flipkart, any startup"
                 />
               </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">Who are you writing to?</label>
+              <select
+                {...register('recipientRole', { required: 'Select who you are writing this email to' })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Select recipient role</option>
+                {JOB_RECIPIENT_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label} — {r.description}</option>
+                ))}
+              </select>
+              {errors.recipientRole && <span className="text-red-600 text-sm">{errors.recipientRole.message}</span>}
             </div>
 
             <div className="mb-6">
@@ -600,6 +604,50 @@ export default function EmailGenerationForm() {
         >
           {loading ? 'Generating...' : emailPurpose === 'job_seeking' ? 'Generate Job Application Email' : 'Generate Emails'}
         </button>
+
+        <div className="flex items-center justify-end gap-2 mt-3">
+          <span className="text-xs text-gray-700">Save current form as template:</span>
+          {showBottomSaveInput ? (
+            <>
+              <input
+                type="text"
+                value={bottomTemplateName}
+                onChange={(e) => setBottomTemplateName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBottomSave()}
+                placeholder="Template name…"
+                autoFocus
+                className="text-xs border border-amber-300 rounded px-2 py-1.5 w-36 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={handleBottomSave}
+                disabled={!bottomTemplateName.trim()}
+                className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowBottomSaveInput(false); setBottomTemplateName(''); }}
+                className="text-xs px-2 py-1.5 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowBottomSaveInput(true)}
+              className={`text-xs px-3 py-1.5 rounded-md  border  border-2 transition-colors whitespace-nowrap ${
+                bottomSaveSuccess
+                  ? 'bg-green-100 text-green-700 border-green-300'
+                  : 'bg-amber-100 text-amber-900 border-blue-500 hover:bg-amber-200'
+              }`}
+            >
+              {bottomSaveSuccess ? '✓ Saved!' : '+ Save as Template'}
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="max-w-4xl mx-auto py-8">
