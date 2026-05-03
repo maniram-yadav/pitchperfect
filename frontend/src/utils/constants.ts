@@ -10,14 +10,53 @@ export const INDUSTRIES = [
 ];
 
 export const TARGET_ROLES = [
+  // C-Suite
   'CEO',
   'CTO',
-  'HR',
-  'Marketing Head',
-  'Sales Lead',
-  'Founder',
+  'CFO',
+  'COO',
+  'CMO',
+  'CPO',
+  'CIO',
+  'CISO',
+  // Founders
+  'Founder / Co-Founder',
+  // VP Level
+  'VP of Engineering',
+  'VP of Sales',
+  'VP of Marketing',
+  'VP of Product',
   'VP of Operations',
+  'VP of Business Development',
+  'VP of Customer Success',
+  'VP of Finance',
+  // Director Level
+  'Director of Engineering',
+  'Director of IT',
+  'Director of Marketing',
+  'Director of Sales',
+  'Director of Product',
+  'Director of Operations',
+  // Head of
+  'Head of Growth',
+  'Head of Business Development',
+  'Head of Technology',
+  'Head of Data & Analytics',
+  'Head of HR',
+  // Manager Level
+  'Engineering Manager',
+  'IT Manager',
+  'Marketing Manager',
+  'Sales Manager',
   'Product Manager',
+  'Operations Manager',
+  'Procurement Manager',
+  // Other
+  'HR Manager',
+  'HR Recruiter',
+  'Sales Lead',
+  'Marketing Head',
+  'Decision Maker',
 ];
 
 export const COMPANY_SIZES = [
@@ -61,6 +100,30 @@ export const JOB_SEEKER_PROFILES = [
   { value: 'architect', label: 'Software Architect', description: 'Senior technical leader, system design expert' },
   { value: 'manager', label: 'Engineering Manager', description: 'Team lead / people manager' },
   { value: 'professional', label: 'IT Professional', description: 'Other experienced tech professional' },
+] as const;
+
+export const JOB_RECIPIENT_ROLES = [
+  { value: 'hr_manager',          label: 'HR Manager',              description: 'Human Resources Manager' },
+  { value: 'hr_recruiter',        label: 'HR Recruiter',            description: 'Internal Talent Acquisition' },
+  { value: 'recruiter',           label: 'Recruiter (Agency)',      description: 'External / Agency Recruiter' },
+  { value: 'talent_acquisition',  label: 'Talent Acquisition Lead', description: 'Head of Sourcing / TA' },
+  { value: 'hiring_manager',      label: 'Hiring Manager',          description: 'Direct manager for the role' },
+  { value: 'engineering_manager', label: 'Engineering Manager',     description: 'Dev / Engineering Team Manager' },
+  { value: 'director_engineering',label: 'Director of Engineering', description: 'Engineering Director' },
+  { value: 'vp_engineering',      label: 'VP of Engineering',       description: 'Vice President, Engineering' },
+  { value: 'head_technology',     label: 'Head of Technology',      description: 'Technical Head / CTO-level' },
+  { value: 'technical_lead',      label: 'Technical Lead',          description: 'Senior Tech Lead / Architect' },
+  { value: 'cto',                 label: 'CTO',                     description: 'Chief Technology Officer' },
+  { value: 'cpo',                 label: 'CPO',                     description: 'Chief Product Officer' },
+  { value: 'vp_product',          label: 'VP of Product',           description: 'Vice President, Product' },
+  { value: 'product_manager',     label: 'Product Manager',         description: 'Product / Program Manager' },
+  { value: 'ceo',                 label: 'CEO',                     description: 'Chief Executive Officer' },
+  { value: 'coo',                 label: 'COO',                     description: 'Chief Operating Officer' },
+  { value: 'cfo',                 label: 'CFO',                     description: 'Chief Financial Officer' },
+  { value: 'founder',             label: 'Founder / Co-Founder',    description: 'Company Founder' },
+  { value: 'managing_director',   label: 'Managing Director',       description: 'MD / Regional Director' },
+  { value: 'general_manager',     label: 'General Manager',         description: 'General / Business Manager' },
+  { value: 'department_head',     label: 'Department Head',         description: 'Head of a department' },
 ] as const;
 
 export const EMAIL_PURPOSE_OPTIONS = [

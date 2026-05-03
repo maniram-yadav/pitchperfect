@@ -9,7 +9,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useUserProfile } from '../../hooks/useUserProfile';
 import {
   INDUSTRIES, TARGET_ROLES, COMPANY_SIZES, TONE_OPTIONS, LENGTH_OPTIONS,
-  EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS, JOB_SEEKER_PROFILES, EMAIL_PURPOSE_OPTIONS,
+  EMAIL_TYPE_OPTIONS, CTA_TYPE_OPTIONS, EMAIL_PURPOSE_OPTIONS, JOB_RECIPIENT_ROLES,
 } from '../../utils/constants';
 import GeneratedEmailsDisplay from './GeneratedEmailsDisplay';
 import TemplateManager from './TemplateManager';
@@ -47,6 +47,7 @@ export default function EmailGenerationForm() {
       emailPurpose: 'business',
       // job-seeking defaults
       jobSeekerProfile: 'software_engineer',
+      recipientRole: 'hr_recruiter',
       yearsOfExperience: '',
       skills: '',
       targetCompany: '',
@@ -203,32 +204,8 @@ export default function EmailGenerationForm() {
         {/* ── JOB-SEEKING FORM ── */}
         {emailPurpose === 'job_seeking' ? (
           <>
-            {/* Job Seeker Profile Selector */}
-            <div className="mb-6">
-              <label className="block text-sm font-semibold mb-3 text-gray-800">Your Profile Type</label>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                {JOB_SEEKER_PROFILES.map((p) => (
-                  <label
-                    key={p.value}
-                    className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-all ${
-                      selectedJobProfile === p.value
-                        ? 'border-blue-500 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      value={p.value}
-                      {...register('jobSeekerProfile', { required: 'Select your profile type' })}
-                      className="sr-only"
-                    />
-                    <p className="text-sm font-medium leading-tight">{p.label}</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-tight">{p.description}</p>
-                  </label>
-                ))}
-              </div>
-              {errors.jobSeekerProfile && <span className="text-red-600 text-sm">{errors.jobSeekerProfile.message}</span>}
-            </div>
+            {/* Job Seeker Profile Selector — UI hidden; field kept for prompt context via default value */}
+            <input type="hidden" {...register('jobSeekerProfile')} />
 
             {/* Applicant Info */}
             <div className="grid grid-cols-2 gap-4 mb-6">
@@ -315,6 +292,20 @@ export default function EmailGenerationForm() {
                   placeholder="e.g. Google, Flipkart, any startup"
                 />
               </div>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium mb-1">Who are you writing to?</label>
+              <select
+                {...register('recipientRole', { required: 'Select who you are writing this email to' })}
+                className="w-full border rounded px-3 py-2"
+              >
+                <option value="">Select recipient role</option>
+                {JOB_RECIPIENT_ROLES.map((r) => (
+                  <option key={r.value} value={r.value}>{r.label} — {r.description}</option>
+                ))}
+              </select>
+              {errors.recipientRole && <span className="text-red-600 text-sm">{errors.recipientRole.message}</span>}
             </div>
 
             <div className="mb-6">

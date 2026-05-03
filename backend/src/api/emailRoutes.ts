@@ -29,7 +29,7 @@ router.post(
           return;
         }
       } else if (input.emailPurpose === 'job_seeking') {
-        const requiredFields = ['senderName', 'jobSeekerProfile', 'skills', 'jobTitle', 'tone', 'length', 'variations'];
+        const requiredFields = ['senderName', 'skills', 'jobTitle', 'tone', 'length', 'variations'];
 
         const missingFields = requiredFields.filter(
           (field) => !(field in input) || (input as any)[field] === '' || (input as any)[field] === undefined

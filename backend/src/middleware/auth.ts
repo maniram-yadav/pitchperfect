@@ -28,7 +28,7 @@ export const verifyToken = (req: Request, res: Response, next: NextFunction): vo
     next();
   } catch (error) {
     logger.warn('Auth rejected — invalid token', { path: req.path, method: req.method, error: (error as Error).message });
-    res.status(401).json({ success: false, message: 'Invalid token' });
+    res.status(401).json({ success: false, message: 'Session Expired. Login to proceed' });
   }
 };
 
