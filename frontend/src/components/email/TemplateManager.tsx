@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTemplateStore, FormTemplate } from '../../lib/templateStore';
+import { useTemplateStore } from '../../lib/templateStore';
 
 interface TemplateManagerProps {
   onLoad: (values: Record<string, any>) => void;
@@ -106,10 +106,10 @@ export default function TemplateManager({ onLoad, onSave }: TemplateManagerProps
         <button
           type="button"
           onClick={() => setShowSaveInput(true)}
-          className={`text-xs px-3 py-1.5 rounded border transition-colors whitespace-nowrap ${
+          className={`text-xs px-3 py-1.5 rounded-md border  border-2 transition-colors whitespace-nowrap ${
             saveSuccess
               ? 'bg-green-100 text-green-700 border-green-300'
-              : 'bg-white text-amber-700 border-amber-300 hover:bg-amber-100'
+              : 'bg-amber-100 text-amber-900 border-blue-500 b hover:bg-amber-200'
           }`}
         >
           {saveSuccess ? '✓ Saved!' : '+ Save as Template'}

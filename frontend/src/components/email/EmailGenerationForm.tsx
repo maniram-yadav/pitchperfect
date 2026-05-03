@@ -21,7 +21,7 @@ export default function EmailGenerationForm() {
   const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('business');
   const { user } = useAuth();
   const { profile } = useUserProfile();
-  const { lastUsedTemplateId, getTemplate } = useTemplateStore();
+  const { lastUsedTemplateId, getTemplate, saveTemplate, setLastUsed } = useTemplateStore();
 
   const { register, handleSubmit, watch, getValues, formState: { errors }, reset } = useForm<EmailGenerationInput>({
     defaultValues: {
@@ -81,6 +81,19 @@ export default function EmailGenerationForm() {
   const { setGenerations } = useEmailStore();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [emailType, setEmailType] = useState<string>('cold_outreach');
+  const [showBottomSaveInput, setShowBottomSaveInput] = useState(false);
+  const [bottomTemplateName, setBottomTemplateName] = useState('');
+  const [bottomSaveSuccess, setBottomSaveSuccess] = useState(false);
+  const handleBottomSave = () => {
+    const name = bottomTemplateName.trim();
+    if (!name) return;
+    const saved = saveTemplate(name, getValues());
+    setLastUsed(saved.id);
+    setBottomTemplateName('');
+    setShowBottomSaveInput(false);
+    setBottomSaveSuccess(true);
+    setTimeout(() => setBottomSaveSuccess(false), 2000);
+  };
 
   useEffect(() => {
     emailAPI.getHistory(20).then((result) => {
@@ -600,6 +613,50 @@ export default function EmailGenerationForm() {
         >
           {loading ? 'Generating...' : emailPurpose === 'job_seeking' ? 'Generate Job Application Email' : 'Generate Emails'}
         </button>
+
+        <div className="flex items-center justify-end gap-2 mt-3">
+          <span className="text-xs text-gray-700">Save current form as template:</span>
+          {showBottomSaveInput ? (
+            <>
+              <input
+                type="text"
+                value={bottomTemplateName}
+                onChange={(e) => setBottomTemplateName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleBottomSave()}
+                placeholder="Template name…"
+                autoFocus
+                className="text-xs border border-amber-300 rounded px-2 py-1.5 w-36 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={handleBottomSave}
+                disabled={!bottomTemplateName.trim()}
+                className="text-xs px-3 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50 transition-colors"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowBottomSaveInput(false); setBottomTemplateName(''); }}
+                className="text-xs px-2 py-1.5 text-gray-400 hover:text-gray-600"
+              >
+                ✕
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowBottomSaveInput(true)}
+              className={`text-xs px-3 py-1.5 rounded-md  border  border-2 transition-colors whitespace-nowrap ${
+                bottomSaveSuccess
+                  ? 'bg-green-100 text-green-700 border-green-300'
+                  : 'bg-amber-100 text-amber-900 border-blue-500 hover:bg-amber-200'
+              }`}
+            >
+              {bottomSaveSuccess ? '✓ Saved!' : '+ Save as Template'}
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="max-w-4xl mx-auto py-8">
