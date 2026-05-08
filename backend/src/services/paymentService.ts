@@ -5,6 +5,8 @@ import { UserModel } from '../models/User';
 import { PLAN_TOKENS } from '../utils/constants';
 import { TransactionStatus, WebhookPayload, PaidPlanName } from '../types/transaction';
 import { verifyPayuResponseHash, txnidToUuid } from '../utils/payuHash';
+import { fetchCashfreeOrder } from '../utils/cashfreeClient';
+import { cashfreeEventToStatus } from '../utils/cashfreeWebhook';
 import { config } from '../config/env';
 
 const TERMINAL_STATUSES: TransactionStatus[] = ['success', 'refunded', 'cancelled'];
@@ -237,6 +239,144 @@ export const paymentService = {
       return {
         success: false,
         message: 'PayU response processing failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  /**
+   * Process a Cashfree return_url callback.
+   * Verifies the actual payment status via the Cashfree API (never trusts browser params),
+   * updates the transaction, and grants tokens on success.
+   */
+  async processCashfreeCallback(
+    transactionId: string,
+    cfOrderId: string,
+    sourceIp?: string
+  ): Promise<ApiResponse<any>> {
+    try {
+      const transaction = await pgTransactionRepo.findById(transactionId);
+      if (!transaction) {
+        return { success: false, message: 'Transaction not found' };
+      }
+
+      // Verify payment status from Cashfree API — do not trust browser redirect params
+      const cfOrder = await fetchCashfreeOrder(cfOrderId);
+
+      const newStatus: TransactionStatus =
+        cfOrder.order_status === 'PAID' ? 'success' :
+        cfOrder.order_status === 'EXPIRED' ? 'cancelled' : 'failed';
+
+      await pgTransactionRepo.appendWebhookEvent(transaction.id, {
+        event: `cashfree.callback.${cfOrder.order_status}`,
+        payload: cfOrder as unknown as Record<string, unknown>,
+        received_at: new Date().toISOString(),
+        source_ip: sourceIp,
+      });
+
+      if (TERMINAL_STATUSES.includes(transaction.status)) {
+        return {
+          success: true,
+          message: `Transaction already in terminal state: ${transaction.status}`,
+          data: { transactionId: transaction.id, status: transaction.status },
+        };
+      }
+
+      await pgTransactionRepo.updateStatus(transaction.id, newStatus, {
+        gateway_payment_id: String(cfOrder.cf_order_id),
+      });
+
+      if (newStatus === 'success') {
+        const user = await UserModel.findById(transaction.user_id);
+        if (user) {
+          user.tokens += transaction.tokens_added;
+          user.plan = transaction.plan;
+          await user.save();
+        }
+      }
+
+      return {
+        success: true,
+        message: `Cashfree payment ${cfOrder.order_status}`,
+        data: { transactionId: transaction.id, status: newStatus, cfOrderStatus: cfOrder.order_status },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Cashfree callback processing failed',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  },
+
+  /**
+   * Process a Cashfree server-to-server webhook event.
+   * The webhook body contains the order_id (our transaction UUID), order_status,
+   * and the webhook type. Verifies the event before updating the transaction.
+   */
+  async processCashfreeWebhook(
+    webhookType: string,
+    orderId: string,
+    orderStatus: string,
+    cfPaymentId: string | undefined,
+    failureMessage: string | undefined,
+    rawPayload: Record<string, unknown>,
+    sourceIp?: string
+  ): Promise<ApiResponse<any>> {
+    try {
+      // order_id = our transaction UUID (set during order creation)
+      const transaction = await pgTransactionRepo.findById(orderId);
+      if (!transaction) {
+        return { success: false, message: `Transaction not found for order_id: ${orderId}` };
+      }
+
+      await pgTransactionRepo.appendWebhookEvent(transaction.id, {
+        event: `cashfree.${webhookType}`,
+        payload: rawPayload,
+        received_at: new Date().toISOString(),
+        source_ip: sourceIp,
+      });
+
+      if (TERMINAL_STATUSES.includes(transaction.status)) {
+        return {
+          success: true,
+          message: `Transaction already in terminal state: ${transaction.status}`,
+          data: { transactionId: transaction.id, status: transaction.status },
+        };
+      }
+
+      const newStatus = cashfreeEventToStatus(webhookType, orderStatus);
+      if (!newStatus) {
+        return {
+          success: true,
+          message: `Unhandled Cashfree webhook type: ${webhookType}`,
+          data: { transactionId: transaction.id },
+        };
+      }
+
+      await pgTransactionRepo.updateStatus(transaction.id, newStatus, {
+        gateway_payment_id: cfPaymentId,
+        failure_reason: failureMessage,
+      });
+
+      if (newStatus === 'success') {
+        const user = await UserModel.findById(transaction.user_id);
+        if (user) {
+          user.tokens += transaction.tokens_added;
+          user.plan = transaction.plan;
+          await user.save();
+        }
+      }
+
+      return {
+        success: true,
+        message: `Cashfree webhook processed: ${webhookType}`,
+        data: { transactionId: transaction.id, status: newStatus },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Cashfree webhook processing failed',
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }

@@ -133,3 +133,26 @@ export const payuAPI = {
     return response.data;
   },
 };
+
+export const cashfreeAPI = {
+  /**
+   * Creates a Cashfree order server-side (with idempotency).
+   * Returns { sessionId, orderId, transactionId, mode } — the frontend
+   * loads the Cashfree JS SDK and calls:
+   *   cashfree.checkout({ paymentSessionId: sessionId, redirectTarget: "_self" })
+   */
+  async initiatePayment(
+    plan: string,
+    amount: number,
+    phone: string,
+    idempotencyKey?: string
+  ): Promise<any> {
+    const response = await apiClient.post('/api/cashfree/initiate', {
+      plan,
+      amount,
+      phone,
+      idempotencyKey,
+    });
+    return response.data;
+  },
+};
