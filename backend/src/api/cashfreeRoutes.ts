@@ -58,12 +58,16 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
       res.status(500).json({ success: false, message: 'Payment gateway not configured' });
       return;
     }
-
+    logger.debug('Cashfree initiate config check passed', {
+      appIdSet: config.cashfree.appId.substring(0, 6),
+      secretKeySet: config.cashfree.secretKey.substring(0, 15),
+    });
     const user = await UserModel.findById(userId);
     if (!user) {
       res.status(404).json({ success: false, message: 'User not found' });
       return;
     }
+    logger.debug('Cashfree initiate user found', { userId, email: user.email });
 
     // Create or retrieve the internal transaction (idempotent)
     const txnResult = await paymentService.initiatePayment(userId, plan, amount, idempotencyKey);
@@ -71,7 +75,7 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
       res.status(400).json(txnResult);
       return;
     }
-
+    logger.debug('Cashfree initiate txnResult=%j', txnResult.data);
     const transactionId: string = txnResult.data.transactionId;
     const amountNum = parseFloat(amount.toString());
 
@@ -80,10 +84,12 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
 
     // Cashfree replaces {order_id} at redirect time; we also pass txn for safe lookup
     const returnUrl =
-      `${config.backendUrl}/api/cashfree/callback` +
-      `?txn=${encodeURIComponent(transactionId)}&order_id={order_id}`;
+      `${config.frontendUrl}/api/cashfree/callback` +
+      `?order_id={order_id}`;
+      
 
-    const notifyUrl = `${config.backendUrl}/api/webhook/cashfree`;
+    const notifyUrl = `${config.frontendUrl}/api/webhook/cashfree`;
+    logger.debug('Cashfree initiate returnUrl=%s notifyUrl=%s', returnUrl, notifyUrl);
 
     // We use our transaction UUID as the Cashfree order_id (36 chars, valid format)
     const cfOrder = await createCashfreeOrder({

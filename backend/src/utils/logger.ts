@@ -1,6 +1,6 @@
 import winston from 'winston';
 
-const { combine, timestamp, colorize, printf, errors } = winston.format;
+const { combine, timestamp, colorize, printf, errors, splat } = winston.format;
 
 const logFormat = printf(({ level, message, timestamp, stack, ...meta }) => {
   const metaStr = Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
@@ -12,6 +12,7 @@ export const logger = winston.createLogger({
   format: combine(
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     errors({ stack: true }),
+    splat(),
     colorize(),
     logFormat
   ),
