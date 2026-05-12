@@ -4,6 +4,7 @@ import { paymentService } from '../services/paymentService';
 import { config } from '../config/env';
 import { logger } from '../utils/logger';
 import { TransactionStatus, WebhookPayload } from '../types/transaction';
+import { verifyCashfreeWebhookSignature } from '../utils/cashfreeWebhook';
 
 const router = Router();
 
@@ -253,4 +254,85 @@ router.post('/payu/notify', async (req: Request, res: Response): Promise<void> =
 
   res.status(200).send('OK');
 });
+/**
+ * POST /api/webhook/cashfree
+ *
+ * Unified Cashfree webhook endpoint — configure this URL in the Cashfree dashboard
+ * under "Payment Gateway → Webhooks". Cashfree sends all events (payment success,
+ * failure, user-dropped, refund) here as server-to-server POST requests.
+ *
+ * Body: application/json (raw, for HMAC-SHA256 verification)
+ * Headers: x-webhook-signature (Base64 HMAC), x-webhook-timestamp
+ *
+ * Always returns HTTP 200 to prevent Cashfree from retrying.
+ */
+router.post(
+  '/cashfree',
+  async (req: Request, res: Response): Promise<void> => {
+    const rawBody: Buffer = req.body;
+    const signature = req.headers['x-webhook-signature'] as string | undefined;
+    const timestamp = req.headers['x-webhook-timestamp'] as string | undefined;
+    const sourceIp = req.ip ?? 'unknown';
+
+    logger.info('POST /api/webhook/cashfree', { sourceIp, hasSignature: !!signature });
+
+    // Signature verification — skipped when secret is not configured (development)
+    if (config.cashfree.webhookSecret) {
+      if (!signature || !timestamp) {
+        logger.warn('Cashfree webhook missing signature or timestamp headers', { sourceIp });
+        res.status(200).send('OK');
+        return;
+      }
+      if (!verifyCashfreeWebhookSignature(rawBody, timestamp, signature, config.cashfree.webhookSecret)) {
+        logger.warn('Cashfree webhook signature verification failed', { sourceIp });
+        res.status(200).send('OK');
+        return;
+      }
+    }
+
+    let body: Record<string, any>;
+    try {
+      body = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      logger.warn('Cashfree webhook: invalid JSON body', { sourceIp });
+      res.status(200).send('OK');
+      return;
+    }
+
+    // Cashfree webhook shape:
+    // { type: "PAYMENT_SUCCESS_WEBHOOK", data: { order: { order_id, order_status },
+    //   payment: { cf_payment_id, payment_status, payment_message } }, event_time: "..." }
+    const webhookType: string = body.type ?? '';
+    const orderId: string = body.data?.order?.order_id ?? '';
+    const orderStatus: string = body.data?.order?.order_status ?? '';
+    const cfPaymentId: string | undefined = body.data?.payment?.cf_payment_id?.toString();
+    const failureMessage: string | undefined = body.data?.payment?.payment_message;
+
+    logger.info('Cashfree webhook parsed', { webhookType, orderId, orderStatus });
+
+    if (!orderId) {
+      logger.warn('Cashfree webhook missing order_id', { webhookType });
+      res.status(200).send('OK');
+      return;
+    }
+
+    const result = await paymentService.processCashfreeWebhook(
+      webhookType,
+      orderId,
+      orderStatus,
+      cfPaymentId,
+      failureMessage,
+      body as Record<string, unknown>,
+      sourceIp
+    );
+
+    if (!result.success) {
+      logger.warn('Cashfree webhook processing failed', { orderId, reason: result.message });
+    }
+
+    // Always 200 — Cashfree will retry on non-200; log failures for investigation
+    res.status(200).send('OK');
+  }
+);
+
 export default router;

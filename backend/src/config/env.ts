@@ -61,6 +61,13 @@ export const config = {
     keyId: getEnvValue('RAZORPAY_KEY_ID', ''),
     keySecret: getEnvValue('RAZORPAY_KEY_SECRET', ''),
   },
+  cashfree: {
+    appId: getEnvValue('CASHFREE_APP_ID', ''),
+    secretKey: getEnvValue('CASHFREE_SECRET_KEY', ''),
+    webhookSecret: getEnvValue('CASHFREE_WEBHOOK_SECRET', ''),
+    // true → sandbox.cashfree.com  |  false → api.cashfree.com (production)
+    sandboxMode: getEnvValue('CASHFREE_SANDBOX_MODE', 'true') === 'true',
+  },
   payu: {
     merchantKey: getEnvValue('PAYU_MERCHANT_KEY', ''),
     merchantSalt: getEnvValue('PAYU_MERCHANT_SALT', ''),

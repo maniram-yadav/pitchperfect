@@ -12,6 +12,7 @@ import paymentRoutes from './api/paymentRoutes';
 import contactRoutes from './api/contactRoutes';
 import webhookRoutes from './api/webhookRoutes';
 import payuRoutes from './api/payuRoutes';
+import cashfreeRoutes from './api/cashfreeRoutes';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -40,7 +41,10 @@ app.use('/api/webhook/payment', express.raw({ type: 'application/json' }));
 // 2. PayU IPN webhooks: urlencoded form data (server-to-server from PayU)
 app.use('/api/webhook/payu', express.urlencoded({ extended: false }));
 
-// 3. PayU browser callbacks (surl/furl): urlencoded form data posted by PayU
+// 3. Cashfree webhooks: raw body for HMAC-SHA256 signature verification
+app.use('/api/webhook/cashfree', express.raw({ type: 'application/json' }));
+
+// 4. PayU browser callbacks (surl/furl): urlencoded form data posted by PayU
 app.use('/api/payu/callback', express.urlencoded({ extended: false }));
 
 // 4. All other routes: JSON
@@ -73,6 +77,9 @@ app.use('/api/webhook', webhookRoutes);
 
 // PayU routes: /api/payu/initiate (protected inside the router), /api/payu/callback/*
 app.use('/api/payu', payuRoutes);
+
+// Cashfree routes: /api/cashfree/initiate (protected inside the router), /api/cashfree/callback
+app.use('/api/cashfree', cashfreeRoutes);
 
 // Health check
 app.get('/health', (_req, res) => {

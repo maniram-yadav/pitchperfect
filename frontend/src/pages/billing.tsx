@@ -4,14 +4,41 @@ import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import PricingCard from '../components/pricing/PricingCard';
 import { PLAN_DATA } from '../utils/constants';
-import { payuAPI } from '../lib/api';
+import { payuAPI, cashfreeAPI } from '../lib/api';
 import { Plan } from '../types/index';
+import { flushAllTraces } from 'next/dist/trace';
+
+// Extend window so TypeScript knows about the dynamically-loaded Cashfree SDK
+declare global {
+  interface Window {
+    Cashfree: (options: { mode: 'sandbox' | 'production' }) => {
+      checkout: (options: { paymentSessionId: string; redirectTarget: string }) => void;
+    };
+  }
+}
+
+type PaymentProvider = 'payu' | 'cashfree';
 
 interface ModalState {
   plan: Plan | null;
   phone: string;
+  provider: PaymentProvider;
   loading: boolean;
   error: string | null;
+}
+
+function loadCashfreeSDK(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window.Cashfree !== 'undefined') {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://sdk.cashfree.com/js/v3/cashfree.js';
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load Cashfree SDK'));
+    document.head.appendChild(script);
+  });
 }
 
 export default function BillingPage() {
@@ -19,20 +46,21 @@ export default function BillingPage() {
   const [modal, setModal] = useState<ModalState>({
     plan: null,
     phone: '',
+    provider: 'cashfree',
     loading: false,
     error: null,
   });
 
   const openModal = (plan: Plan) => {
     if (plan.name === 'free') return;
-    setModal({ plan, phone: '', loading: false, error: null });
+    setModal({ plan, phone: '', provider: 'cashfree', loading: false, error: null });
   };
 
   const closeModal = () =>
-    setModal({ plan: null, phone: '', loading: false, error: null });
+    setModal({ plan: null, phone: '', provider: 'cashfree', loading: false, error: null });
 
   const handlePay = async () => {
-    const { plan, phone } = modal;
+    const { plan, phone, provider } = modal;
     if (!plan) return;
 
     if (!phone.trim()) {
@@ -48,39 +76,11 @@ export default function BillingPage() {
     setModal((m) => ({ ...m, loading: true, error: null }));
 
     try {
-      const result = await payuAPI.initiatePayment(plan.name, plan.price, phone.trim());
-
-      if (!result.success || !result.data) {
-        setModal((m) => ({
-          ...m,
-          loading: false,
-          error: result.message || 'Failed to initiate payment',
-        }));
-        return;
+      if (provider === 'cashfree') {
+        await handleCashfreePayment(plan, phone.trim());
+      } else {
+        await handlePayuPayment(plan, phone.trim());
       }
-
-      const { payuUrl, formFields } = result.data as {
-        payuUrl: string;
-        formFields: Record<string, string>;
-      };
-
-      // Build a hidden form and POST it directly to PayU's hosted checkout.
-      // The SHA-512 hash was generated server-side; do not alter any field here.
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = payuUrl;
-
-      Object.entries(formFields).forEach(([name, value]) => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = name;
-        input.value = String(value ?? '');
-        form.appendChild(input);
-      });
-
-      document.body.appendChild(form);
-      form.submit();
-      // Browser navigates away — loading spinner stays until redirect completes
     } catch {
       setModal((m) => ({
         ...m,
@@ -88,6 +88,62 @@ export default function BillingPage() {
         error: 'Something went wrong. Please try again.',
       }));
     }
+  };
+
+  const handleCashfreePayment = async (plan: Plan, phone: string) => {
+    const result = await cashfreeAPI.initiatePayment(plan.name, plan.price, phone);
+
+    if (!result.success || !result.data) {
+      setModal((m) => ({
+        ...m,
+        loading: false,
+        error: result.message || 'Failed to initiate payment',
+      }));
+      return;
+    }
+
+    const { sessionId, mode } = result.data as { sessionId: string; mode: 'sandbox' | 'production' };
+
+    await loadCashfreeSDK();
+
+    const cashfree = window.Cashfree({ mode });
+    // SDK navigates the browser away — loading spinner stays until redirect
+    cashfree.checkout({ paymentSessionId: sessionId, redirectTarget: '_self' });
+  };
+
+  const handlePayuPayment = async (plan: Plan, phone: string) => {
+    const result = await payuAPI.initiatePayment(plan.name, plan.price, phone);
+
+    if (!result.success || !result.data) {
+      setModal((m) => ({
+        ...m,
+        loading: false,
+        error: result.message || 'Failed to initiate payment',
+      }));
+      return;
+    }
+
+    const { payuUrl, formFields } = result.data as {
+      payuUrl: string;
+      formFields: Record<string, string>;
+    };
+
+    // Build a hidden form and POST it directly to PayU's hosted checkout.
+    // The SHA-512 hash was generated server-side; do not alter any field here.
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = payuUrl;
+
+    Object.entries(formFields).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = String(value ?? '');
+      form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
   };
 
   return (
@@ -102,13 +158,13 @@ export default function BillingPage() {
           <PricingCard
             key={plan.name}
             plan={plan}
-            isCurrentPlan={user?.plan === plan.name}
+            isCurrentPlan={false}
             onSelect={openModal}
           />
         ))}
       </div>
 
-      {/* ── PayU phone-number modal ── */}
+      {/* ── Payment modal ── */}
       {modal.plan && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
@@ -121,6 +177,25 @@ export default function BillingPage() {
               plan for{' '}
               <span className="font-semibold">₹{modal.plan.price}</span> · {modal.plan.tokens} tokens
             </p>
+
+            {/* Provider selector */}
+            <p className="text-sm font-medium text-gray-700 mb-2">Payment Provider</p>
+            <div className="flex gap-2 mb-5">
+              {(['cashfree'] as PaymentProvider[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setModal((m) => ({ ...m, provider: p, error: null }))}
+                  disabled={modal.loading}
+                  className={`flex-1 py-2 rounded-lg border text-sm font-medium transition
+                    ${modal.provider === p
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    } disabled:opacity-40`}
+                >
+                  {p === 'cashfree' ? 'Cashfree' : ' '}
+                </button>
+              ))}
+            </div>
 
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Phone Number <span className="text-red-500">*</span>
@@ -143,7 +218,7 @@ export default function BillingPage() {
             )}
 
             <p className="text-xs text-gray-400 mb-6 mt-2">
-              Required by PayU. Not stored by PitchPerfect.
+              Required by payment provider. Not stored by PitchPerfect.
             </p>
 
             <div className="flex gap-3">
@@ -172,7 +247,10 @@ export default function BillingPage() {
 
             <p className="text-xs text-center text-gray-400 mt-5">
               Secured by{' '}
-              <span className="font-semibold text-gray-500">PayU</span> · SHA-512 encrypted
+              <span className="font-semibold text-gray-500">
+                {modal.provider === 'cashfree' ? 'Cashfree' : 'PayU'}
+              </span>{' '}
+              · End-to-end encrypted
             </p>
           </div>
         </div>
@@ -183,7 +261,7 @@ export default function BillingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             { step: 1, title: 'Choose a Plan', desc: 'Select the plan that fits your email generation needs.' },
-            { step: 2, title: 'Secure Payment', desc: "Pay safely via PayU — India's trusted payment gateway." },
+            { step: 2, title: 'Secure Payment', desc: 'Pay safely via Cashfree or PayU — trusted Indian payment gateways.' },
             { step: 3, title: 'Start Generating', desc: 'Tokens are added instantly after successful payment.' },
           ].map(({ step, title, desc }) => (
             <div key={step}>

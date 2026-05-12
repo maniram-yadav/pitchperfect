@@ -106,6 +106,7 @@ export const pgTransactionRepo = {
     id: string,
     status: TransactionStatus,
     fields: {
+      gateway_order_id?: string;
       gateway_payment_id?: string;
       gateway_signature?: string;
       failure_reason?: string;
@@ -114,15 +115,17 @@ export const pgTransactionRepo = {
     const { rows } = await getPool().query<PgTransaction>(
       `UPDATE transactions
        SET status             = $2,
-           gateway_payment_id = COALESCE($3, gateway_payment_id),
-           gateway_signature  = COALESCE($4, gateway_signature),
-           failure_reason     = COALESCE($5, failure_reason),
+           gateway_order_id   = COALESCE($3, gateway_order_id),
+           gateway_payment_id = COALESCE($4, gateway_payment_id),
+           gateway_signature  = COALESCE($5, gateway_signature),
+           failure_reason     = COALESCE($6, failure_reason),
            updated_at         = NOW()
        WHERE id = $1
        RETURNING *`,
       [
         id,
         status,
+        fields.gateway_order_id ?? null,
         fields.gateway_payment_id ?? null,
         fields.gateway_signature ?? null,
         fields.failure_reason ?? null,
