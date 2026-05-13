@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { ApiResponse } from '../types/index';
 import { pgTransactionRepo } from '../models/PgTransaction';
-import { UserModel } from '../models/User';
+import { pgUserRepo } from '../models/PgUser';
 import { PLAN_TOKENS } from '../utils/constants';
 import { TransactionStatus, WebhookPayload, PaidPlanName } from '../types/transaction';
 import { verifyPayuResponseHash, txnidToUuid } from '../utils/payuHash';
@@ -112,12 +112,7 @@ export const paymentService = {
 
       // Grant tokens to user only on a successful payment
       if (payload.status === 'success' && updated) {
-        const user = await UserModel.findById(transaction.user_id);
-        if (user) {
-          user.tokens += transaction.tokens_added;
-          user.plan = transaction.plan;
-          await user.save();
-        }
+        await pgUserRepo.addTokensAndPlan(transaction.user_id, transaction.tokens_added, transaction.plan);
       }
 
       return {
@@ -222,12 +217,7 @@ export const paymentService = {
       });
 
       if (newStatus === 'success') {
-        const user = await UserModel.findById(transaction.user_id);
-        if (user) {
-          user.tokens += transaction.tokens_added;
-          user.plan = transaction.plan;
-          await user.save();
-        }
+        await pgUserRepo.addTokensAndPlan(transaction.user_id, transaction.tokens_added, transaction.plan);
       }
 
       return {
@@ -287,12 +277,7 @@ export const paymentService = {
       });
 
       if (newStatus === 'success') {
-        const user = await UserModel.findById(transaction.user_id);
-        if (user) {
-          user.tokens += transaction.tokens_added;
-          user.plan = transaction.plan;
-          await user.save();
-        }
+        await pgUserRepo.addTokensAndPlan(transaction.user_id, transaction.tokens_added, transaction.plan);
       }
 
       return {
@@ -360,12 +345,7 @@ export const paymentService = {
       });
 
       if (newStatus === 'success') {
-        const user = await UserModel.findById(transaction.user_id);
-        if (user) {
-          user.tokens += transaction.tokens_added;
-          user.plan = transaction.plan;
-          await user.save();
-        }
+        await pgUserRepo.addTokensAndPlan(transaction.user_id, transaction.tokens_added, transaction.plan);
       }
 
       return {

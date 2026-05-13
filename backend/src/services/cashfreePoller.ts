@@ -1,5 +1,5 @@
 import { pgTransactionRepo } from '../models/PgTransaction';
-import { UserModel } from '../models/User';
+import { pgUserRepo } from '../models/PgUser';
 import { fetchCashfreeOrder } from '../utils/cashfreeClient';
 import { TransactionStatus } from '../types/transaction';
 import { config } from '../config/env';
@@ -71,12 +71,7 @@ export async function pollPendingCashfreeOrders(): Promise<{
         });
 
         if (resolvedStatus === 'success') {
-          const user = await UserModel.findById(txn.user_id);
-          if (user) {
-            user.tokens += txn.tokens_added;
-            user.plan = txn.plan;
-            await user.save();
-          }
+          await pgUserRepo.addTokensAndPlan(txn.user_id, txn.tokens_added, txn.plan);
         }
 
         logger.info('[cashfreePoller] resolved txn=%s order_status=%s → %s',

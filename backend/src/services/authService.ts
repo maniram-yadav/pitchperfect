@@ -1,7 +1,6 @@
 import crypto from 'crypto';
 import bcryptjs from 'bcryptjs';
-import { UserModel } from '../models/User';
-import { OtpTokenModel } from '../models/OtpToken';
+import { pgUserRepo, pgOtpTokenRepo } from '../models/PgUser';
 import { hashPassword, verifyPassword } from '../utils/security';
 import { generateToken, generateRefreshToken } from '../middleware/auth';
 import { ApiResponse } from '../types/index';
@@ -17,7 +16,7 @@ export const authService = {
   async signup(name: string, email: string, password: string): Promise<ApiResponse<any>> {
     logger.debug('authService.signup', { email });
     try {
-      const existingUser = await UserModel.findOne({ email });
+      const existingUser = await pgUserRepo.findByEmail(email);
 
       if (existingUser) {
         logger.warn('Signup — user already exists', { email });
@@ -26,9 +25,16 @@ export const authService = {
 
       const passwordHash = await hashPassword(password);
       const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-      const newUser = new UserModel({ name, email, passwordHash, tokens: 5 * EMAIL_TOKENS.single, plan: 'free', emailVerified: false, emailVerificationToken });
-      await newUser.save();
-      logger.info('Signup — user created', { userId: newUser._id.toString(), email });
+      const newUser = await pgUserRepo.create({
+        name,
+        email,
+        password_hash: passwordHash,
+        tokens: 10,
+        plan: 'free',
+        email_verified: false,
+        email_verification_token: emailVerificationToken,
+      });
+      logger.info('Signup — user created', { userId: newUser.id, email });
 
       const verificationLink = `${config.frontendUrl}/verify-email?token=${emailVerificationToken}`;
       await notificationService.sendVerificationEmail(newUser.name, newUser.email, verificationLink);
@@ -50,34 +56,34 @@ export const authService = {
   async login(email: string, password: string): Promise<ApiResponse<any>> {
     logger.debug('authService.login', { email });
     try {
-      const user = await UserModel.findOne({ email });
+      const user = await pgUserRepo.findByEmail(email);
 
       if (!user) {
         logger.warn('Login — user not found', { email });
         return { success: false, message: 'Invalid credentials', error: 'User not found' };
       }
 
-      const isPasswordValid = await verifyPassword(password, user.passwordHash);
+      const isPasswordValid = await verifyPassword(password, user.password_hash);
 
       if (!isPasswordValid) {
         logger.warn('Login — incorrect password', { email });
         return { success: false, message: 'Invalid credentials', error: 'Incorrect password' };
       }
 
-      if (!user.emailVerified) {
+      if (!user.email_verified) {
         logger.warn('Login — email not verified', { email });
         return { success: false, message: 'Email not verified. Please check your inbox and click the verification link we sent you before logging in.', error: 'EMAIL_NOT_VERIFIED' };
       }
 
-      logger.info('Login — success', { userId: user._id.toString(), email });
-      const token = generateToken(user._id.toString(), user.email);
-      const refreshToken = generateRefreshToken(user._id.toString(), user.email);
+      logger.info('Login — success', { userId: user.id, email });
+      const token = generateToken(user.id, user.email);
+      const refreshToken = generateRefreshToken(user.id, user.email);
 
       return {
         success: true,
         message: 'Login successful',
         data: {
-          userId: user._id.toString(),
+          userId: user.id,
           email: user.email,
           name: user.name,
           tokens: user.tokens,
@@ -95,20 +101,18 @@ export const authService = {
   async resendVerification(email: string): Promise<ApiResponse<null>> {
     logger.debug('authService.resendVerification', { email });
     try {
-      const user = await UserModel.findOne({ email: email.toLowerCase() });
+      const user = await pgUserRepo.findByEmail(email);
 
       if (!user) {
-        // Silent — don't reveal whether email exists
         return { success: true, message: 'If that account exists and is unverified, a new link has been sent.' };
       }
 
-      if (user.emailVerified) {
+      if (user.email_verified) {
         return { success: false, message: 'This email is already verified. You can log in.' };
       }
 
       const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-      user.emailVerificationToken = emailVerificationToken;
-      await user.save();
+      await pgUserRepo.updateVerificationToken(user.id, emailVerificationToken);
 
       const verificationLink = `${config.frontendUrl}/verify-email?token=${emailVerificationToken}`;
       await notificationService.sendVerificationEmail(user.name, user.email, verificationLink);
@@ -124,21 +128,19 @@ export const authService = {
   async verifyEmail(token: string): Promise<ApiResponse<null>> {
     logger.debug('authService.verifyEmail', { token: token.slice(0, 8) + '...' });
     try {
-      const user = await UserModel.findOne({ emailVerificationToken: token });
+      const user = await pgUserRepo.findByVerificationToken(token);
 
       if (!user) {
         return { success: false, message: 'Invalid or expired verification link.' };
       }
 
-      if (user.emailVerified) {
+      if (user.email_verified) {
         return { success: true, message: 'Email already verified. You can log in.' };
       }
 
-      user.emailVerified = true;
-      user.emailVerificationToken = undefined;
-      await user.save();
+      await pgUserRepo.updateVerification(user.id, true, null);
 
-      logger.info('Email verified', { userId: user._id.toString(), email: user.email });
+      logger.info('Email verified', { userId: user.id, email: user.email });
       await notificationService.sendWelcomeEmail(user.name, user.email);
 
       return { success: true, message: 'Email verified successfully! You can now log in.' };
@@ -151,7 +153,7 @@ export const authService = {
   async getUserProfile(userId: string): Promise<ApiResponse<any>> {
     logger.debug('authService.getUserProfile', { userId });
     try {
-      const user = await UserModel.findById(userId);
+      const user = await pgUserRepo.findById(userId);
 
       if (!user) {
         logger.warn('getUserProfile — user not found', { userId });
@@ -163,13 +165,13 @@ export const authService = {
         success: true,
         message: 'User profile retrieved',
         data: {
-          userId: user._id.toString(),
+          userId: user.id,
           name: user.name,
           email: user.email,
           tokens: user.tokens,
           plan: user.plan,
           profile: user.profile || {},
-          createdAt: user.createdAt,
+          createdAt: user.created_at,
         },
       };
     } catch (error) {
@@ -181,11 +183,7 @@ export const authService = {
   async updateProfile(userId: string, profile: Record<string, string>): Promise<ApiResponse<any>> {
     logger.debug('authService.updateProfile', { userId });
     try {
-      const user = await UserModel.findByIdAndUpdate(
-        userId,
-        { $set: { profile } },
-        { new: true }
-      );
+      const user = await pgUserRepo.updateProfile(userId, profile);
 
       if (!user) {
         logger.warn('updateProfile — user not found', { userId });
@@ -205,23 +203,20 @@ export const passwordResetService = {
   async requestReset(email: string): Promise<ApiResponse<null>> {
     logger.debug('passwordResetService.requestReset', { email });
     try {
-      const user = await UserModel.findOne({ email: email.toLowerCase() });
+      const user = await pgUserRepo.findByEmail(email);
 
-      // Always return success to avoid user enumeration
       if (!user) {
         logger.warn('Password reset — email not found (silent)', { email });
         return { success: true, message: 'If that email exists, an OTP has been sent.' };
       }
 
       logger.info('Password reset — user found, creating OTP', { email });
-      // Delete any existing OTP for this email
-      await OtpTokenModel.deleteMany({ email: email.toLowerCase() });
 
       const otp = crypto.randomInt(100000, 999999).toString();
       const otpHash = await bcryptjs.hash(otp, 10);
       const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-      await OtpTokenModel.create({ email: email.toLowerCase(), otpHash, expiresAt });
+      await pgOtpTokenRepo.create({ email: email.toLowerCase(), otp_hash: otpHash, expires_at: expiresAt });
       logger.info('Password reset OTP created', { email, expiresAt });
       await notificationService.sendOtpEmail(email, otp);
       logger.info('Password reset OTP created and sent', { email });
@@ -236,33 +231,33 @@ export const passwordResetService = {
   async resetPassword(email: string, otp: string, newPassword: string): Promise<ApiResponse<null>> {
     logger.debug('passwordResetService.resetPassword', { email });
     try {
-      const record = await OtpTokenModel.findOne({ email: email.toLowerCase() });
+      const record = await pgOtpTokenRepo.findByEmail(email);
 
       if (!record) {
         return { success: false, message: 'OTP not found or expired. Please request a new one.' };
       }
 
       if (record.attempts >= MAX_OTP_ATTEMPTS) {
-        await OtpTokenModel.deleteOne({ _id: record._id });
+        await pgOtpTokenRepo.deleteById(record.id);
         return { success: false, message: 'Too many incorrect attempts. Please request a new OTP.' };
       }
 
-      if (new Date() > record.expiresAt) {
-        await OtpTokenModel.deleteOne({ _id: record._id });
+      if (new Date() > record.expires_at) {
+        await pgOtpTokenRepo.deleteById(record.id);
         return { success: false, message: 'OTP has expired. Please request a new one.' };
       }
 
-      const isValid = await bcryptjs.compare(otp, record.otpHash);
+      const isValid = await bcryptjs.compare(otp, record.otp_hash);
 
       if (!isValid) {
-        await OtpTokenModel.updateOne({ _id: record._id }, { $inc: { attempts: 1 } });
+        await pgOtpTokenRepo.incrementAttempts(record.id);
         const remaining = MAX_OTP_ATTEMPTS - record.attempts - 1;
         return { success: false, message: `Invalid OTP. ${remaining} attempt(s) remaining.` };
       }
 
       const passwordHash = await hashPassword(newPassword);
-      await UserModel.updateOne({ email: email.toLowerCase() }, { passwordHash });
-      await OtpTokenModel.deleteOne({ _id: record._id });
+      await pgUserRepo.updatePasswordByEmail(email, passwordHash);
+      await pgOtpTokenRepo.deleteById(record.id);
 
       logger.info('Password reset successful', { email });
       return { success: true, message: 'Password reset successfully. You can now log in.' };
@@ -277,7 +272,7 @@ export const tokenService = {
   async getUserTokens(userId: string): Promise<ApiResponse<number>> {
     logger.debug('tokenService.getUserTokens', { userId });
     try {
-      const user = await UserModel.findById(userId);
+      const user = await pgUserRepo.findById(userId);
 
       if (!user) {
         logger.warn('getUserTokens — user not found', { userId });
@@ -294,20 +289,19 @@ export const tokenService = {
   async deductTokens(userId: string, tokensToDeduct: number): Promise<ApiResponse<number>> {
     logger.debug('tokenService.deductTokens', { userId, tokensToDeduct });
     try {
-      const user = await UserModel.findById(userId);
+      const user = await pgUserRepo.deductTokens(userId, tokensToDeduct);
 
       if (!user) {
-        logger.warn('deductTokens — user not found', { userId });
-        return { success: false, message: 'User not found' };
+        // Could be user not found OR insufficient tokens — check which
+        const existing = await pgUserRepo.findById(userId);
+        if (!existing) {
+          logger.warn('deductTokens — user not found', { userId });
+          return { success: false, message: 'User not found' };
+        }
+        logger.warn('deductTokens — insufficient tokens', { userId, have: existing.tokens, need: tokensToDeduct });
+        return { success: false, message: 'Insufficient tokens', error: `Need ${tokensToDeduct} tokens but only have ${existing.tokens}` };
       }
 
-      if (user.tokens < tokensToDeduct) {
-        logger.warn('deductTokens — insufficient tokens', { userId, have: user.tokens, need: tokensToDeduct });
-        return { success: false, message: 'Insufficient tokens', error: `Need ${tokensToDeduct} tokens but only have ${user.tokens}` };
-      }
-
-      user.tokens -= tokensToDeduct;
-      await user.save();
       logger.info('deductTokens — success', { userId, remaining: user.tokens });
       return { success: true, message: 'Tokens deducted successfully', data: user.tokens };
     } catch (error) {
@@ -319,17 +313,16 @@ export const tokenService = {
   async addTokens(userId: string, tokensToAdd: number): Promise<ApiResponse<number>> {
     logger.debug('tokenService.addTokens', { userId, tokensToAdd });
     try {
-      const user = await UserModel.findById(userId);
+      const user = await pgUserRepo.findById(userId);
 
       if (!user) {
         logger.warn('addTokens — user not found', { userId });
         return { success: false, message: 'User not found' };
       }
 
-      user.tokens += tokensToAdd;
-      await user.save();
-      logger.info('addTokens — success', { userId, total: user.tokens });
-      return { success: true, message: 'Tokens added successfully', data: user.tokens };
+      const updated = await pgUserRepo.addTokensAndPlan(userId, tokensToAdd, user.plan);
+      logger.info('addTokens — success', { userId, total: updated?.tokens });
+      return { success: true, message: 'Tokens added successfully', data: updated?.tokens ?? user.tokens + tokensToAdd };
     } catch (error) {
       logger.error('tokenService.addTokens error', { userId, error });
       return { success: false, message: 'Failed to add tokens', error: error instanceof Error ? error.message : 'Unknown error' };
