@@ -134,26 +134,26 @@ export const EMAIL_PURPOSE_OPTIONS = [
 export const PLAN_DATA: import('../types/index').Plan[] = [
   {
     name: 'free',
-    tokens: 10,
+    tokens: 50,
     price: 0,
-    features: ['10 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
+    features: ['50 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
   },
-  {
-    name: 'basic test',
-    tokens: 10,
-    price: 10,
-    features: ['10 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
-  },
+  // {
+  //   name: 'basic test',
+  //   tokens: 10,
+  //   price: 10,
+  //   features: ['10 tokens/month', 'Single email generation', 'Email history', 'Basic support'],
+  // },
   {
     name: 'starter',
-    tokens: 100,
+    tokens: 250,
     price: 199,
-    features: ['100 tokens/month', 'Email sequences', 'Personalization tokens', 'Priority support'],
+    features: ['250 tokens/month', 'Email sequences', 'Personalization tokens', 'Priority support'],
   },
   {
     name: 'pro',
-    tokens: 500,
+    tokens: 900,
     price: 499,
-    features: ['500 tokens/month', 'Unlimited sequences', 'Advanced analytics', '24/7 support'],
+    features: ['900 tokens/month', 'Unlimited sequences', 'Advanced analytics', '24/7 support'],
   },
 ];

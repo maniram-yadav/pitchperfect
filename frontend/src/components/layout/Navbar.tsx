@@ -40,8 +40,8 @@ export default function Navbar() {
             </>
           ) : (
             <>
-             <Link href="/billing" className="hover:text-secondary transition">
-                Billing
+              <Link href="/generate" className="hover:text-secondary transition">
+                Generate
               </Link>
               <Link href="/login" className="hover:text-secondary transition">
                 Login

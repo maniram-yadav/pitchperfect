@@ -19,7 +19,7 @@ import { emailAPI } from '../../lib/api';
 export default function EmailGenerationForm() {
   const [inputMode] = useState<'structured' | 'custom'>('structured');
   const [emailPurpose, setEmailPurpose] = useState<EmailPurpose>('business');
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const { profile } = useUserProfile();
   const { lastUsedTemplateId, getTemplate, saveTemplate, setLastUsed } = useTemplateStore();
 
@@ -97,12 +97,13 @@ export default function EmailGenerationForm() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     emailAPI.getHistory(20).then((result) => {
       if (result.success && Array.isArray(result.data)) {
         setGenerations(result.data);
       }
     }).catch(() => {});
-  }, [setGenerations]);
+  }, [setGenerations, isAuthenticated]);
 
   const onSubmit = async (data: any) => {
     setSuccessMessage(null);
@@ -149,7 +150,7 @@ export default function EmailGenerationForm() {
   };
 
   const variationsValue = watch('variations') || 1;
-  const estimatedTokens = variationsValue;
+  const estimatedTokens = variationsValue*10;
   const selectedJobProfile = watch('jobSeekerProfile');
 
   return (
@@ -192,6 +193,17 @@ export default function EmailGenerationForm() {
             </div>
           </div> */}
         </div>
+
+        {!isAuthenticated && (
+          <div className="bg-red-200 border border-yellow-400 text-yellow-800 px-4 py-3 rounded mb-4 flex items-center gap-2">
+            <span>&#9888;</span>
+            <span>
+              Please{' '}
+              <a href="/login" className="font-semibold underline hover:text-yellow-900">Login</a>
+              {' '}first to generate email.
+            </span>
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-50 border border-red-300 text-red-700 px-4 py-3 rounded mb-4 flex items-start gap-2">
@@ -599,8 +611,8 @@ export default function EmailGenerationForm() {
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-secondary text-white py-3 rounded font-medium hover:bg-blue-600 disabled:opacity-50"
+          disabled={loading || !isAuthenticated}
+          className="w-full bg-secondary text-white py-3 rounded font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Generating...' : emailPurpose === 'job_seeking' ? 'Generate Job Application Email' : 'Generate Emails'}
         </button>

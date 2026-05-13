@@ -1,20 +1,16 @@
 'use client';
 
 import EmailGenerationForm from '../components/email/EmailGenerationForm';
-import { useRequireAuth } from '../hooks/useAuth';
+import { useAuth } from '../hooks/useAuth';
 import { useEmailStore } from '../lib/emailStore';
 import EmailPreview from '../components/email/EmailPreview';
 
 export default function GeneratePage() {
-  const { isAuthenticated, hasLoaded } = useRequireAuth();
+  const { hasLoaded } = useAuth();
   const { currentGeneration } = useEmailStore();
 
   if (!hasLoaded) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-  }
-
-  if (!isAuthenticated) {
-    return null;
   }
 
   return (

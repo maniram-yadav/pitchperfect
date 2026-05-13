@@ -7,6 +7,7 @@ import { ApiResponse } from '../types/index';
 import { logger } from '../utils/logger';
 import { notificationService } from './notificationService';
 import { config } from '../config/env';
+import { EMAIL_TOKENS } from '../utils/constants';
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
