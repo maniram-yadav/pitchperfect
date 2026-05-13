@@ -84,11 +84,11 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
 
     // Cashfree replaces {order_id} at redirect time; we also pass txn for safe lookup
     const returnUrl =
-      `${config.frontendUrl}/api/cashfree/callback` +
-      `?order_id={order_id}`;
+      `${config.backendUrl}/api/cashfree/callback` +
+      `?txn=${encodeURIComponent(transactionId)}&order_id={order_id}`;
       
 
-    const notifyUrl = `${config.frontendUrl}/api/webhook/cashfree`;
+    const notifyUrl = `${config.backendUrl}/api/webhook/cashfree`;
     logger.debug('Cashfree initiate returnUrl=%s notifyUrl=%s', returnUrl, notifyUrl);
 
     // We use our transaction UUID as the Cashfree order_id (36 chars, valid format)
