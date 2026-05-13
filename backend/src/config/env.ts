@@ -67,6 +67,14 @@ export const config = {
     webhookSecret: getEnvValue('CASHFREE_WEBHOOK_SECRET', ''),
     // true → sandbox.cashfree.com  |  false → api.cashfree.com (production)
     sandboxMode: getEnvValue('CASHFREE_SANDBOX_MODE', 'true') === 'true',
+    poll: {
+      // How often the poller wakes up (ms). Default: 5 minutes.
+      intervalMs: parseInt(getEnvValue('CASHFREE_POLL_INTERVAL_MS', '300000'), 10),
+      // Max number of poll attempts before marking a transaction as 'stuck'.
+      maxAttempts: parseInt(getEnvValue('CASHFREE_POLL_MAX_ATTEMPTS', '5'), 10),
+      // Minimum age of a transaction (minutes) before the first poll attempt.
+      minAgeMinutes: parseInt(getEnvValue('CASHFREE_POLL_MIN_AGE_MINUTES', '10'), 10),
+    },
   },
   payu: {
     merchantKey: getEnvValue('PAYU_MERCHANT_KEY', ''),

@@ -13,6 +13,7 @@ import contactRoutes from './api/contactRoutes';
 import webhookRoutes from './api/webhookRoutes';
 import payuRoutes from './api/payuRoutes';
 import cashfreeRoutes from './api/cashfreeRoutes';
+import { startCashfreePoller } from './services/cashfreePoller';
 import { logger } from './utils/logger';
 
 const app = express();
@@ -101,6 +102,7 @@ const startServer = async () => {
     await connectDB();
     await connectPostgres();
     await initTransactionsTable();
+    // startCashfreePoller();
   } catch (error) {
     logger.error('Failed to connect to databases', { error });
     process.exit(1);

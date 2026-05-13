@@ -7,7 +7,8 @@ export type TransactionStatus =
   | 'success'
   | 'failed'
   | 'refunded'
-  | 'cancelled';
+  | 'cancelled'
+  | 'stuck';
 
 export interface WebhookEvent {
   event: string;
@@ -24,6 +25,7 @@ export interface PgTransaction {
   amount: number;
   currency: string;
   tokens_added: number;
+  gateway: string | null;
   gateway_order_id: string | null;
   gateway_payment_id: string | null;
   gateway_signature: string | null;
@@ -31,6 +33,8 @@ export interface PgTransaction {
   failure_reason: string | null;
   webhook_events: WebhookEvent[];
   metadata: Record<string, unknown>;
+  pull_attempts: number;
+  last_pulled_at: Date | null;
   created_at: Date;
   updated_at: Date;
 }
