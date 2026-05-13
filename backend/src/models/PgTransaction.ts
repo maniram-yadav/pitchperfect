@@ -19,6 +19,7 @@ export const initTransactionsTable = async (): Promise<void> => {
       amount              NUMERIC(10,2) NOT NULL,
       currency            VARCHAR(10)   NOT NULL DEFAULT 'INR',
       tokens_added        INTEGER       NOT NULL,
+      gateway             VARCHAR(50),
       gateway_order_id    VARCHAR(255),
       gateway_payment_id  VARCHAR(255),
       gateway_signature   TEXT,
@@ -26,15 +27,23 @@ export const initTransactionsTable = async (): Promise<void> => {
       failure_reason      TEXT,
       webhook_events      JSONB         NOT NULL DEFAULT '[]'::jsonb,
       metadata            JSONB         NOT NULL DEFAULT '{}'::jsonb,
+      pull_attempts       INTEGER       NOT NULL DEFAULT 0,
+      last_pulled_at      TIMESTAMPTZ,
       created_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
       updated_at          TIMESTAMPTZ   NOT NULL DEFAULT NOW()
     )
   `);
 
+  // Additive migrations for existing deployments — safe to run on every startup
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS gateway          VARCHAR(50)`);
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS pull_attempts    INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS last_pulled_at   TIMESTAMPTZ`);
+
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_txn_user_id          ON transactions(user_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_txn_idempotency_key  ON transactions(idempotency_key)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_txn_gateway_order_id ON transactions(gateway_order_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_txn_status           ON transactions(status)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_txn_gateway          ON transactions(gateway)`);
 
   logger.info('PostgreSQL transactions table initialized');
 };
@@ -106,6 +115,7 @@ export const pgTransactionRepo = {
     id: string,
     status: TransactionStatus,
     fields: {
+      gateway?: string;
       gateway_order_id?: string;
       gateway_payment_id?: string;
       gateway_signature?: string;
@@ -115,16 +125,18 @@ export const pgTransactionRepo = {
     const { rows } = await getPool().query<PgTransaction>(
       `UPDATE transactions
        SET status             = $2,
-           gateway_order_id   = COALESCE($3, gateway_order_id),
-           gateway_payment_id = COALESCE($4, gateway_payment_id),
-           gateway_signature  = COALESCE($5, gateway_signature),
-           failure_reason     = COALESCE($6, failure_reason),
+           gateway            = COALESCE($3, gateway),
+           gateway_order_id   = COALESCE($4, gateway_order_id),
+           gateway_payment_id = COALESCE($5, gateway_payment_id),
+           gateway_signature  = COALESCE($6, gateway_signature),
+           failure_reason     = COALESCE($7, failure_reason),
            updated_at         = NOW()
        WHERE id = $1
        RETURNING *`,
       [
         id,
         status,
+        fields.gateway ?? null,
         fields.gateway_order_id ?? null,
         fields.gateway_payment_id ?? null,
         fields.gateway_signature ?? null,
@@ -141,6 +153,50 @@ export const pgTransactionRepo = {
            updated_at     = NOW()
        WHERE id = $1`,
       [id, JSON.stringify([event])]
+    );
+  },
+
+  /**
+   * Find pending/processing Cashfree transactions that are ready to be polled.
+   * A transaction is eligible when:
+   *   - status is 'pending' or 'processing'
+   *   - gateway is 'cashfree'
+   *   - created at least minAgeMinutes ago (avoid polling brand-new orders)
+   *   - not polled in the last pollIntervalMs milliseconds
+   *   - pull_attempts < maxAttempts
+   */
+  async findPendingCashfreeForPoll(opts: {
+    minAgeMinutes: number;
+    pollIntervalMs: number;
+    maxAttempts: number;
+    limit?: number;
+  }): Promise<PgTransaction[]> {
+    const { minAgeMinutes, pollIntervalMs, maxAttempts, limit = 50 } = opts;
+    const { rows } = await getPool().query<PgTransaction>(
+      `SELECT * FROM transactions
+       WHERE gateway = 'cashfree'
+         AND status IN ('pending', 'processing')
+         AND created_at < NOW() - ($1 || ' minutes')::interval
+         AND (last_pulled_at IS NULL OR last_pulled_at < NOW() - ($2 || ' milliseconds')::interval)
+         AND pull_attempts < $3
+       ORDER BY created_at ASC
+       LIMIT $4`,
+      [minAgeMinutes, pollIntervalMs, maxAttempts, limit]
+    );
+    return rows;
+  },
+
+  /**
+   * Record a poll attempt: increment counter and set last_pulled_at to now.
+   */
+  async recordPollAttempt(id: string, newAttempts: number): Promise<void> {
+    await getPool().query(
+      `UPDATE transactions
+       SET pull_attempts  = $2,
+           last_pulled_at = NOW(),
+           updated_at     = NOW()
+       WHERE id = $1`,
+      [id, newAttempts]
     );
   },
 };

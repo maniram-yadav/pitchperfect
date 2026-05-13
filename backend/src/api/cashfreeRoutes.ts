@@ -6,6 +6,7 @@ import { config } from '../config/env';
 import { logger } from '../utils/logger';
 import { PLAN_TOKENS, PAID_PLAN_NAMES } from '../utils/constants';
 import { createCashfreeOrder } from '../utils/cashfreeClient';
+import { pgTransactionRepo } from '../models/PgTransaction';
 
 const router = Router();
 
@@ -109,6 +110,9 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
       order_note: orderNote,
     });
 
+    // Stamp gateway = 'cashfree' so the poller can identify this transaction
+    await pgTransactionRepo.updateStatus(transactionId, 'pending', { gateway: 'cashfree' });
+
     logger.info('Cashfree order created', {
       userId,
       transactionId,
@@ -141,13 +145,16 @@ router.post('/initiate', verifyToken, async (req: Request, res: Response): Promi
  * Query: { txn: transactionId, order_id: cashfreeOrderId }
  */
 router.get('/callback', async (req: Request, res: Response): Promise<void> => {
-  const { txn: transactionId, order_id } = req.query as Record<string, string>;
+  const query = req.query as Record<string, string>;
+  const order_id = query.order_id;
+  // txn is a legacy fallback; since order_id === our transaction UUID, it works as both
+  const transactionId = query.txn || order_id;
   const frontendBase = config.frontendUrl;
 
   logger.info('Cashfree callback', { transactionId, order_id });
 
   try {
-    if (!transactionId || !order_id) {
+    if (!order_id) {
       res.redirect(`${frontendBase}/payment-failure?error=missing_params`);
       return;
     }
