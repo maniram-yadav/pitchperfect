@@ -3,6 +3,8 @@ import cors from 'cors';
 import { connectDB } from './config/database';
 import { connectPostgres } from './config/postgres';
 import { initTransactionsTable } from './models/PgTransaction';
+import { initUsersTable } from './models/PgUser';
+import { runMongoToPostgresMigration } from './migrations/mongoToPostgres';
 import { config } from './config/env';
 import { verifyToken } from './middleware/auth';
 import { apiLimiter } from './middleware/rateLimiter';
@@ -102,6 +104,8 @@ const startServer = async () => {
     await connectDB();
     await connectPostgres();
     await initTransactionsTable();
+    await initUsersTable();
+    // await runMongoToPostgresMigration();
     // startCashfreePoller();
   } catch (error) {
     logger.error('Failed to connect to databases', { error });
