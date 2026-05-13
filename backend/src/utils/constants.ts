@@ -2,9 +2,9 @@ export const PLAN_NAMES = ['free','basic test', 'starter', 'pro'] as const;
 export const PAID_PLAN_NAMES = ['starter','basic test', 'pro'] as const;
 
 export const PLAN_TOKENS = {
-  free: 10,
+  free: 50,
   'basic test': 10,
-  starter: 300,
+  starter: 250,
   pro: 900,
 };
 
