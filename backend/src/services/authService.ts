@@ -8,6 +8,7 @@ import { ApiResponse } from '../types/index';
 import { logger } from '../utils/logger';
 import { notificationService } from './notificationService';
 import { config } from '../config/env';
+import { EMAIL_TOKENS } from '../utils/constants';
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -25,7 +26,7 @@ export const authService = {
 
       const passwordHash = await hashPassword(password);
       const emailVerificationToken = crypto.randomBytes(32).toString('hex');
-      const newUser = new UserModel({ name, email, passwordHash, tokens: 10, plan: 'free', emailVerified: false, emailVerificationToken });
+      const newUser = new UserModel({ name, email, passwordHash, tokens: 5 * EMAIL_TOKENS.single, plan: 'free', emailVerified: false, emailVerificationToken });
       await newUser.save();
       logger.info('Signup — user created', { userId: newUser._id.toString(), email });
 

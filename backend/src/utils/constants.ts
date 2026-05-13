@@ -1,11 +1,11 @@
-export const PLAN_NAMES = ['free', 'basic test', 'starter', 'pro'] as const;
-export const PAID_PLAN_NAMES = ['basic test', 'starter', 'pro'] as const;
+export const PLAN_NAMES = ['free','basic test', 'starter', 'pro'] as const;
+export const PAID_PLAN_NAMES = ['starter','basic test', 'pro'] as const;
 
 export const PLAN_TOKENS = {
-  free: 10,
+  free: 50,
   'basic test': 10,
-  starter: 100,
-  pro: 500,
+  starter: 250,
+  pro: 900,
 };
 
 export const PLAN_PRICES = {
@@ -16,8 +16,8 @@ export const PLAN_PRICES = {
 };
 
 export const EMAIL_TOKENS = {
-  single: 1,
-  sequence: 3, // 3-email sequence
+  single: 10,   // tokens per email
+  sequence: 30, // tokens for a 3-email sequence
 };
 
 export const TONE_OPTIONS = ['professional', 'casual', 'persuasive', 'friendly'] as const;
