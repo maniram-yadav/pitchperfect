@@ -149,7 +149,7 @@ export default function EmailGenerationForm() {
   };
 
   const variationsValue = watch('variations') || 1;
-  const estimatedTokens = variationsValue;
+  const estimatedTokens = variationsValue*10;
   const selectedJobProfile = watch('jobSeekerProfile');
 
   return (

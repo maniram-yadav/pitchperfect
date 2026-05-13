@@ -19,7 +19,7 @@ export const emailGenerationService = {
       }
 
       const variations = Math.min(Math.max(input.variations || 1, 1), 3);
-      const tokensRequired = input.generateSequence ? EMAIL_TOKENS.sequence : variations;
+      const tokensRequired = input.generateSequence ? EMAIL_TOKENS.sequence : variations * EMAIL_TOKENS.single;
       logger.debug('generateEmails — token check', { userId, balance: tokenCheckResult.data, required: tokensRequired, variations });
 
       if (tokenCheckResult.data < tokensRequired) {
